@@ -1,13 +1,13 @@
-class Sprite {
-    constructor({imageSrc, position}) {
+class CollisionBlock {
+    constructor({position}) {
         this.position = position
-        this.image = new Image()
-        this.image.src = imageSrc
+        this.width = 16
+        this.height = 16
     }
 
     draw() {
-        if (!this.image) return
-        c.drawImage(this.image, this.position.x, this.position.y);
+        c.fillStyle = 'rgba(0, 0, 0, 0)'
+        c.fillRect(this.position.x, this.position.y, this.width, this.height);
     }
 
     update(){

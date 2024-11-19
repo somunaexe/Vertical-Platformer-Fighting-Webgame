@@ -16,10 +16,16 @@ for (let i = 0; i < floorCollisions.length; i+= 36) {
     floorCollisions2D.push(floorCollisions.slice(i, i + 36))
 }
 
-floorCollisions2D.forEach((row) => {
-    row.forEach((symbol) => {
+const collisionBlocks = []
+floorCollisions2D.forEach((row, y) => {
+    row.forEach((symbol, x) => {
         if (symbol === 202) {
-
+            collisionBlocks.push(new CollisionBlock({
+                position: {
+                    x: x * 16, 
+                    y: y * 16
+                }
+            }))
         }
     })
 })
@@ -78,7 +84,9 @@ function animate() {
     c.scale(4, 4)
     c.translate(0, -background.image.height + scaledCanvas.height)
     background.update()
+    collisionBlocks.forEach(block => block.update())
     c.restore()
+
     player1.update();
 }
 animate()
