@@ -39,20 +39,12 @@ class Player extends Sprite {
     }
 }
 
-const keys = [
-    a = {
-        pressed: false
-    },
-    w = {
-        pressed: false
-    },
-    s = {
-        pressed: false
-    },
-    d = {
-        pressed: false
-    },
-]
+const a = {pressed: false}
+const w = {pressed: false}
+const s = {pressed: false}
+const d = {pressed: false}
+const keys = {a,w,s,d}
+
 const player1 = new Player({
     imageSrc: "assets/images/player.jfif",
     position: {x: 0, y: 0},
