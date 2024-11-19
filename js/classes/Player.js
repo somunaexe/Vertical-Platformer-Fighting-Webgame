@@ -16,11 +16,11 @@ class Player extends Sprite {
         }
         this.cameraBox = {
             position:{
-                x: this.position.x,
+                x: this.position.x - 50,
                 y: this.position.y,
             },
-            width: this.width,
-            height: this.height
+            width: 200,
+            height: 80,
         }
         this.animations = animations
 
@@ -34,20 +34,44 @@ class Player extends Sprite {
     updateCameraBox(){
         this.cameraBox = {
             position:{
-                x: this.position.x,
+                x: this.position.x - 50,
                 y: this.position.y,
             },
-            width: this.width,
-            height: this.height
+            width: 200,
+            height: 80
         }
     }
 
-    panCameraToLeft(){
+    panCameraToLeft(canvas, camera){
         const cameraboxRightSide = this.cameraBox.position.x + this.cameraBox.width
-
-        if(cameraboxRightSide >= canvas.width / 4){
-            console.log("panning left")
+        if(cameraboxRightSide >= 576) return
+        if(cameraboxRightSide >= (canvas.width / 4) + Math.abs(camera.position.x)){
+            camera.position.x -= this.velocity.x
         }
+    }
+    panCameraToRight(camera){
+        if(this.cameraBox.position.x <= 0) return
+        if(this.cameraBox.position.x <= Math.abs(camera.position.x)){
+            camera.position.x -= this.velocity.x
+        }
+    }
+
+    panCameraToUp(camera, canvas){
+        if(this.cameraBox.position.y +this.cameraBox.height + this.velocity.y >= 432) return
+        if(this.cameraBox.position.y + this.cameraBox.height >= Math.abs(camera.position.y) + (canvas.height / 4)){
+            camera.position.y -= this.velocity.y
+        }
+    }
+
+    panCameraToDown(camera){
+        if(this.cameraBox.position.y + this.velocity.y <= 0) return
+        if(this.cameraBox.position.y <= Math.abs(camera.position.y))
+            camera.position.y -= this.velocity.y
+    }
+
+    checkForHorizontalCanvasCollisions() {
+        if(this.hitbox.position.x + this.hitbox.width + this.velocity.x >= 576 || this.hitbox.position.x + this.velocity.x <= 0)
+            this.velocity.x = 0
     }
     switchSprite(key) {
         if(this.image === this.animations[key].image || !this.loaded) return
