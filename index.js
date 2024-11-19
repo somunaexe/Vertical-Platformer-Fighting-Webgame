@@ -155,9 +155,6 @@ function animate() {
     c.scale(4, 4)
     c.translate(camera.position.x, camera.position.y)
     background.update()
-    collisionBlocks.forEach(block => block.update())
-    platformBlocks.forEach(block => block.update())
-    
     player1.checkForHorizontalCanvasCollisions()
     player1.update();
     player1.velocity.x = 0
