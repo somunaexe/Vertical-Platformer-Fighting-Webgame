@@ -54,10 +54,52 @@ const background = new Sprite({
 
 const player1 = new Player({
     imageSrc: "assets/images/warrior/Idle.png",
-    position: {x: 100, y: 0},
+    position: {x: 100, y: 300},
     velocity:  {x: 0, y: 0},
     collisionBlocks,
-    frames: 8
+    frames: 8,
+    animations: {
+        idle: {
+            imageSrc: "assets/images/warrior/Idle.png",
+            frames: 8,
+            frameBuffer: 3,
+        },
+        run: {
+            imageSrc: "assets/images/warrior/Run.png",
+            frames: 8,
+            frameBuffer: 5
+        },
+        jump: {
+            imageSrc: "assets/images/warrior/Jump.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+        fall: {
+            imageSrc: "assets/images/warrior/Fall.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+        idleLeft: {
+            imageSrc: "assets/images/warrior/IdleLeft.png",
+            frames: 8,
+            frameBuffer: 3
+        },
+        runLeft: {
+            imageSrc: "assets/images/warrior/RunLeft.png",
+            frames: 8,
+            frameBuffer: 5
+        },
+        jumpLeft: {
+            imageSrc: "assets/images/warrior/JumpLeft.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+        fallLeft: {
+            imageSrc: "assets/images/warrior/FallLeft.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+    }
 });
 
 // const a = {pressed: false}
@@ -107,8 +149,22 @@ function animate() {
 
     player1.update();
     player1.velocity.x = 0
-    if (keys.d.pressed) player1.velocity.x = 5
-    else if (keys.a.pressed) player1.velocity.x = -5
+    player1.velocity.x = 0
+    
+    if (keys.d.pressed) {
+        player1.velocity.x = 2
+        sideFaced = 'right'
+        player1.switchSprite('run')
+    }
+    else if (keys.a.pressed) {
+        player1.velocity.x = -2
+        sideFaced = 'left'
+        player1.switchSprite('runLeft')
+    }
+    else if (player1.velocity.y === 0) player1.switchSprite('idle')
+    
+    if (player1.velocity.y < 0) player1.switchSprite('jump')
+    else if (player1.velocity.y > 0) player1.switchSprite('fall')
     c.restore()
 }
 animate()
