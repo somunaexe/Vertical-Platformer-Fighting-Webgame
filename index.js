@@ -30,6 +30,24 @@ floorCollisions2D.forEach((row, y) => {
     })
 })
 
+const platformCollisions2D = []
+for (let i = 0; i < platformCollisions.length; i+= 36) {
+    platformCollisions2D.push(platformCollisions.slice(i, i + 36))
+}
+const platformBlocks = []
+platformCollisions2D.forEach((row, y) => {
+    row.forEach((symbol, x) => {
+        if (symbol === 202) {
+            platformBlocks.push(new CollisionBlock({
+                position: {
+                    x: x * 16, 
+                    y: y * 16
+                }
+            }))
+        }
+    })
+})
+
 const background = new Sprite({
     imageSrc: "assets/images/background.png",
     position: {x: 0, y: 0}
@@ -47,7 +65,7 @@ const player1 = new Player({
     velocity:  {x: 0, y: 0}
 });
 
-window.addEventListener("keydown", (event) => {
+window.addEventListener("keydown", event => {
     switch (event.code) {
         case "KeyA":
             keys.a.pressed = true;
@@ -62,7 +80,7 @@ window.addEventListener("keydown", (event) => {
     }
 })
 
-window.addEventListener("keyup", (event) => {
+window.addEventListener("keyup", event => {
     switch (event.code) {
         case "KeyA":
             keys.a.pressed = false;
@@ -85,6 +103,8 @@ function animate() {
     c.translate(0, -background.image.height + scaledCanvas.height)
     background.update()
     collisionBlocks.forEach(block => block.update())
+    platformBlocks.forEach(block => block.update())
+
     c.restore()
 
     player1.update();
