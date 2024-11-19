@@ -15,7 +15,6 @@ const floorCollisions2D = []
 for (let i = 0; i < floorCollisions.length; i+= 36) {
     floorCollisions2D.push(floorCollisions.slice(i, i + 36))
 }
-
 const collisionBlocks = []
 floorCollisions2D.forEach((row, y) => {
     row.forEach((symbol, x) => {
@@ -54,9 +53,11 @@ const background = new Sprite({
 })
 
 const player1 = new Player({
-    imageSrc: "assets/images/player.jfif",
-    position: {x: 0, y: 0},
-    velocity:  {x: 0, y: 0}
+    imageSrc: "assets/images/warrior/Idle.png",
+    position: {x: 100, y: 0},
+    velocity:  {x: 0, y: 0},
+    collisionBlocks,
+    frames: 8
 });
 
 // const a = {pressed: false}
@@ -104,11 +105,10 @@ function animate() {
     collisionBlocks.forEach(block => block.update())
     platformBlocks.forEach(block => block.update())
 
-    c.restore()
-
     player1.update();
     player1.velocity.x = 0
     if (keys.d.pressed) player1.velocity.x = 5
     else if (keys.a.pressed) player1.velocity.x = -5
+    c.restore()
 }
 animate()
