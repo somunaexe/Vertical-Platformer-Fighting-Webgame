@@ -4,7 +4,7 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 c.fillStyle = 'green';
 c.fillRect(0, 0, canvas.width, canvas.height);
-const gravity = 0.5;
+const gravity = 0.15;
 
 const scaledCanvas = {
     width: canvas.width / 4,
@@ -41,7 +41,8 @@ platformCollisions2D.forEach((row, y) => {
                 position: {
                     x: x * 16, 
                     y: y * 16
-                }
+                },
+                height: 4,
             }))
         }
     })
@@ -57,6 +58,7 @@ const player1 = new Player({
     position: {x: 100, y: 300},
     velocity:  {x: 0, y: 0},
     collisionBlocks,
+    platformBlocks,
     frames: 8,
     animations: {
         idle: {
@@ -99,7 +101,8 @@ const player1 = new Player({
             frames: 2,
             frameBuffer: 5
         },
-    }
+    },
+    facingLeft: false
 });
 
 // const a = {pressed: false}
@@ -149,22 +152,29 @@ function animate() {
 
     player1.update();
     player1.velocity.x = 0
-    player1.velocity.x = 0
     
     if (keys.d.pressed) {
         player1.velocity.x = 2
-        sideFaced = 'right'
+        player1.facingLeft = false
         player1.switchSprite('run')
+        player1.panCameraToLeft()
     }
     else if (keys.a.pressed) {
         player1.velocity.x = -2
-        sideFaced = 'left'
+        player1.facingLeft = true
         player1.switchSprite('runLeft')
     }
-    else if (player1.velocity.y === 0) player1.switchSprite('idle')
-    
-    if (player1.velocity.y < 0) player1.switchSprite('jump')
-    else if (player1.velocity.y > 0) player1.switchSprite('fall')
+    else if (player1.velocity.y === 0) {
+        if(player1.facingLeft) player1.switchSprite('idleLeft')
+        else player1.switchSprite('idle')
+    }
+
+    if (player1.velocity.y < 0) 
+        if(player1.facingLeft) player1.switchSprite('jumpLeft')
+        else player1.switchSprite('jump')
+    else if (player1.velocity.y > 0) 
+        if(player1.facingLeft) player1.switchSprite('fallLeft')
+        else player1.switchSprite('fall')
     c.restore()
 }
 animate()

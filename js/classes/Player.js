@@ -1,10 +1,11 @@
 class Player extends Sprite {
-    constructor({imageSrc, position, velocity, collisionBlocks, frames, scale = 0.5, animations}) {
+    constructor({imageSrc, position, velocity, collisionBlocks, platformBlocks, frames, scale = 0.5, animations, facingLeft}) {
         super({imageSrc, position, frames, scale})
         this.velocity = velocity;
         this.collisionBlocks = collisionBlocks
+        this.platformBlocks = platformBlocks
         this.frames = frames
-        this.facingLeft = false
+        this.facingLeft = facingLeft
         this.hitbox = {
             position: {
                 x: this.position.x + 35,
@@ -12,6 +13,14 @@ class Player extends Sprite {
             },
             width: 14,
             height: 27,
+        }
+        this.cameraBox = {
+            position:{
+                x: this.position.x,
+                y: this.position.y,
+            },
+            width: this.width,
+            height: this.height
         }
         this.animations = animations
 
@@ -22,8 +31,27 @@ class Player extends Sprite {
         }
     }
 
+    updateCameraBox(){
+        this.cameraBox = {
+            position:{
+                x: this.position.x,
+                y: this.position.y,
+            },
+            width: this.width,
+            height: this.height
+        }
+    }
+
+    panCameraToLeft(){
+        const cameraboxRightSide = this.cameraBox.position.x + this.cameraBox.width
+
+        if(cameraboxRightSide >= canvas.width / 4){
+            console.log("panning left")
+        }
+    }
     switchSprite(key) {
-        if(this.image === this.animations[key]) return
+        if(this.image === this.animations[key].image || !this.loaded) return
+        this.currentFrame = 0
         this.image = this.animations[key].image
         this.frameBuffer = this.animations[key].frameBuffer
         this.frames = this.animations[key].frames
@@ -31,10 +59,11 @@ class Player extends Sprite {
     update() {
         this.updateFrames()
         this.updateHitbox()
-        c.fillStyle = 'rgba(255, 0, 255, 0.5)'
-        c.fillRect(this.position.x, this.position.y, this.width, this.height);
-        c.fillStyle = 'rgba(0, 0, 255, 0.5)'
-        c.fillRect(this.hitbox.position.x, this.hitbox.position.y, this.hitbox.width, this.hitbox.height);
+        this.updateCameraBox()
+        c.fillStyle = 'rgba(255, 200, 255, 1)'
+        c.fillRect(this.cameraBox.position.x, this.cameraBox.position.y, this.cameraBox.width, this.cameraBox.height);
+        // c.fillStyle = 'rgba(0, 0, 255, 0.5)'
+        // c.fillRect(this.hitbox.position.x, this.hitbox.position.y, this.hitbox.width, this.hitbox.height);
 
         this.draw()
         this.position.x += this.velocity.x;
@@ -56,6 +85,7 @@ class Player extends Sprite {
         }
     }
     checkForHorizontalCollisions() {
+        // Detects collision blocks
         for (let i =0; i < this.collisionBlocks.length; i++) {
             const block = this.collisionBlocks[i]
 
@@ -83,6 +113,7 @@ class Player extends Sprite {
     }
 
     checkForVerticalCollisions() {
+        // Detects collision blocks
         for (let i =0; i < this.collisionBlocks.length; i++) {
             const block = this.collisionBlocks[i]
 
@@ -98,6 +129,21 @@ class Player extends Sprite {
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = block.position.y + block.height - offset + 0.01
+                    break
+                }
+            }
+        }
+
+        //Detects platform blocks
+        for (let i =0; i < this.platformBlocks.length; i++) {
+            const platformBlock = this.platformBlocks[i]
+
+            if(platformCollision({object1 : this.hitbox, object2 : platformBlock})){
+                console.log("collided")
+                if(this.velocity.y > 0) {
+                    this.velocity.y = 0
+                    const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
+                    this.position.y = platformBlock.position.y - offset - 0.01
                     break
                 }
             }
