@@ -1,5 +1,5 @@
 class Player extends Sprite {
-    constructor({imageSrc, position, velocity, collisionBlocks, platformBlocks, frames, scale = 0.5, animations, facingLeft}) {
+    constructor({imageSrc, position, velocity, collisionBlocks, platformBlocks, frames, collidedVertically=false, scale = 0.5, animations, facingLeft, sounds}) {
         super({imageSrc, position, frames, scale})
         this.velocity = velocity;
         this.collisionBlocks = collisionBlocks
@@ -7,6 +7,7 @@ class Player extends Sprite {
         this.frames = frames
         this.facingLeft = facingLeft
         this.jumps = 2
+        this.collidedVertically = collidedVertically
         this.hitbox = {
             position: {
                 x: this.position.x + 35,
@@ -30,6 +31,7 @@ class Player extends Sprite {
             image.src = this.animations[key].imageSrc
             this.animations[key].image = image
         }
+        this.sounds = sounds
     }
 
     updateCameraBox(){
@@ -110,7 +112,6 @@ class Player extends Sprite {
             const block = this.collisionBlocks[i]
 
             if(collision(this.hitbox, block)){
-                console.log("collided")
                 if(this.velocity.x < 0) {
                     this.velocity.x = 0
                     const offset = this.hitbox.position.x - this.position.x
@@ -140,10 +141,12 @@ class Player extends Sprite {
             if(collision(this.hitbox, block)){
                 console.log("collided")
                 if(this.velocity.y > 0) {
+                    this.collidedVertically = true
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = block.position.y - offset - 0.01
-                    this.jumps = 2                    
+                    this.jumps = 2       
+                    // if(!this.sounds.fall.isPlaying) this.sounds.fall.play()             
                     break
                 }
                 if(this.velocity.y < 0) {
@@ -162,11 +165,13 @@ class Player extends Sprite {
 
             if(platformCollision({object1 : this.hitbox, object2 : platformBlock})){
                 console.log("collided")
+                this.collidedVertically = true
                 if(this.velocity.y > 0) {
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = platformBlock.position.y - offset - 0.01
-                    this.jumps = 2                    
+                    this.jumps = 2         
+                    // if(!this.sounds.fall.isPlaying) this.sounds.fall.play()           
                     break
                 }
             }

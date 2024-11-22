@@ -53,10 +53,7 @@ const background = new Sprite({
     position: {x: 0, y: 0}
 })
 
-const bgMusic = new Audio('/assets/audio/bg-music.mp3');
-bgMusic.volume = 0.5
-bgMusic.loop = true
-bgMusic.autoplay = true
+const bgMusic = new AudioSFX({src: '/assets/audio/bg-music.mp3', autoplay: true, loop: true});
 
 const player1 = new Player({
     imageSrc: "assets/images/warrior/Idle.png",
@@ -168,6 +165,17 @@ const player1 = new Player({
         //     frameBuffer: 5
         // }
     },
+    sounds: {
+        death: new AudioSFX({src: '/assets/audio/death.mp3'}),
+        fall: new AudioSFX({src: '/assets/audio/fall.mp3'}),
+        grunt: new AudioSFX({src: '/assets/audio/grunt.mp3'}),
+        hit: new AudioSFX({src: '/assets/audio/hit.mp3'}),
+        jump: new AudioSFX({src: '/assets/audio/jump.mp3'}),
+        lowAttack: new AudioSFX({src: '/assets/audio/low-attack.mp3', volume: 1.0}),
+        midAttack: new AudioSFX({src: '/assets/audio/mid-attack.mp3', volume: 1.0}),
+        overheadAttack: new AudioSFX({src: '/assets/audio/overhead-attack.mp3', volume: 1.0}),
+        run: new AudioSFX({src: '/assets/audio/run.mp3', volume: 1.0, loop: true}),
+    }
 });
 
 const player2 = new Player({
@@ -280,10 +288,20 @@ const player2 = new Player({
         //     frameBuffer: 5
         // }
     },
+    sounds: {
+        death: new AudioSFX({src: '/assets/audio/death.mp3'}),
+        fall: new AudioSFX({src: '/assets/audio/fall.mp3'}),
+        grunt: new AudioSFX({src: '/assets/audio/grunt.mp3'}),
+        hit: new AudioSFX({src: '/assets/audio/hit.mp3'}),
+        jump: new AudioSFX({src: '/assets/audio/jump.mp3'}),
+        lowAttack: new AudioSFX({src: '/assets/audio/low-attack.mp3'}),
+        midAttack: new AudioSFX({src: '/assets/audio/mid-attack.mp3'}),
+        overheadAttack: new AudioSFX({src: '/assets/audio/overhead-attack.mp3'}),
+        run: new AudioSFX({src: '/assets/audio/run.mp3', volume: 1.0, loop: true}),
+    }
 });
 
 const backgroundHeight = 432
-
 const camera = {
     position: {
         x: 0,
@@ -300,12 +318,14 @@ function runPlayerAnimation(player, keys) {
         player.velocity.x = 2
         player.facingLeft = false
         player.switchSprite('run')
+        // if(!player.sounds.run.isPlaying && player.collidedVertically) player.sounds.run.play()
         player.panCameraToLeft(canvas, camera)
     }
     else if (keys.a.pressed) {
         player.velocity.x = -2
         player.facingLeft = true
         player.switchSprite('runLeft')
+        // if(!player.sounds.run.isPlaying && player.collidedVertically) player.sounds.run.play()
         player.panCameraToRight(camera)
     }
     else if (player.velocity.y === 0 && !player.isAttacking) {
@@ -317,11 +337,13 @@ function runPlayerAnimation(player, keys) {
         player.panCameraToDown(camera)
         if(player.facingLeft) player.switchSprite('jumpLeft')
         else player.switchSprite('jump')
-    } 
+        // if(!player.sounds.jump.isPlaying) player.sounds.jump.play()
+        } 
     else if (player.velocity.y > 0) {
         player.panCameraToUp(camera, canvas)
         if(player.facingLeft) player.switchSprite('fallLeft')
         else player.switchSprite('fall')
+        // if(player.sounds.jump.isPlaying) player.sounds.jump.stop()
     }
 }
 function animate() {
