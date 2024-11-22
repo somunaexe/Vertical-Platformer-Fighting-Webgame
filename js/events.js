@@ -1,17 +1,27 @@
-const a = {pressed: false}
-const w = {pressed: false}
-const s = {pressed: false}
-const d = {pressed: false}
-const keys = {a,w,s,d}
+const player1Keys = {
+    a: { pressed: false },
+    w: { pressed: false },
+    s: { pressed: false },
+    d: { pressed: false }
+  };
+  
+const player2Keys = {
+a: { pressed: false },
+w: { pressed: false },
+s: { pressed: false },
+d: { pressed: false }
+};
+  
 
 window.addEventListener("keydown", event => {
     console.log(event.code)
     switch (event.code) {
+        //Player 1 cases
         case "KeyA":
-            keys.a.pressed = true;
+            player1Keys.a.pressed = true;
             break
         case "KeyD":
-            keys.d.pressed = true;
+            player1Keys.d.pressed = true;
             break
         case "KeyW":
             player1.jumps > 0 && (
@@ -35,18 +45,41 @@ window.addEventListener("keydown", event => {
         !player1.isAttacking && (
             player1.isAttacking = true,
             player1.switchSprite('attackOverhead')
-        )
-        break
+            )
+            break
+
+        //Player 2 cases
+        case "ArrowLeft":
+            player2Keys.a.pressed = true;
+            break
+        case "ArrowRight":
+            player2Keys.d.pressed = true;
+            break
+        case "ArrowUp":
+            player2.jumps > 0 && (
+                player2.jumps--,
+                player2.velocity.y = -4
+            )
+            break
     }
 })
 
 window.addEventListener("keyup", event => {
     switch (event.code) {
+        //Player 1 cases
         case "KeyA":
-            keys.a.pressed = false;
+            player1Keys.a.pressed = false;
             break
         case "KeyD":
-            keys.d.pressed = false;
+            player1Keys.d.pressed = false;
+            break
+        
+        //Player 2 cases
+        case "ArrowLeft":
+            player2Keys.a.pressed = false;
+            break
+        case "ArrowRight":
+            player2Keys.d.pressed = false;
             break
     }
 })

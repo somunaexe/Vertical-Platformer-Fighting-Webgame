@@ -170,6 +170,118 @@ const player1 = new Player({
     },
 });
 
+const player2 = new Player({
+    imageSrc: "assets/images/warrior/IdleLeft.png",
+    position: {x: 300, y: 300},
+    velocity:  {x: 0, y: 0},
+    collisionBlocks,
+    platformBlocks,
+    frames: 8,
+    facingLeft: true,
+    animations: {
+        idle: {
+            imageSrc: "assets/images/warrior/Idle.png",
+            frames: 8,
+            frameBuffer: 3,
+        },
+        run: {
+            imageSrc: "assets/images/warrior/Run.png",
+            frames: 8,
+            frameBuffer: 5
+        },
+        jump: {
+            imageSrc: "assets/images/warrior/Jump.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+        fall: {
+            imageSrc: "assets/images/warrior/Fall.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+        idleLeft: {
+            imageSrc: "assets/images/warrior/IdleLeft.png",
+            frames: 8,
+            frameBuffer: 3
+        },
+        runLeft: {
+            imageSrc: "assets/images/warrior/RunLeft.png",
+            frames: 8,
+            frameBuffer: 5
+        },
+        jumpLeft: {
+            imageSrc: "assets/images/warrior/JumpLeft.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+        fallLeft: {
+            imageSrc: "assets/images/warrior/FallLeft.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+        attackLow: {
+            imageSrc: "assets/images/warrior/AttackLow.png",
+            frames: 4,
+            frameBuffer: 6
+        },
+        attackMid: {
+            imageSrc: "assets/images/warrior/AttackMid.png",
+            frames: 4,
+            frameBuffer: 4
+        },
+        attackOverhead: {
+            imageSrc: "assets/images/warrior/AttackOverhead.png",
+            frames: 4,
+            frameBuffer: 5
+        },
+        // attackLowLeft: {
+        //     imageSrc: "assets/images/warrior/AttackLowLeft.png",
+        //     frames: 6,
+        //     frameBuffer: 5
+        // },
+        // attackMidLeft: {
+        //     imageSrc: "assets/images/warrior/AttackMidLeft.png",
+        //     frames: 6,
+        //     frameBuffer: 5
+        // },
+        // attackOverheadLeft: {
+        //     imageSrc: "assets/images/warrior/AttackOverheadLeft.png",
+        //     frames: 6,
+        //     frameBuffer: 5
+        // },
+        hit: {
+            imageSrc: "assets/images/warrior/Take Hit.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+        hitSilhouette: {
+            imageSrc: "assets/images/warrior/HitSilhouette.png",
+            frames: 2,
+            frameBuffer: 5
+        } ,
+        // hitSilhouetteLeft: {
+        //     imageSrc: "assets/images/warrior/HitSilhouetteLeft.png",
+        //     frames: 2,
+        //     frameBuffer: 5
+        // },
+        // hitLeft: {
+        //     imageSrc: "assets/images/warrior/HitLeft.png",
+        //     frames: 2,
+        //     frameBuffer: 5
+        // },
+        death: {
+            imageSrc: "assets/images/warrior/Death.png",
+            frames: 6,
+            frameBuffer: 5
+        },
+        // deathLeft: {
+        //     imageSrc: "assets/images/warrior/DeathLeft.png",
+        //     frames: 6,
+        //     frameBuffer: 5
+        // }
+    },
+});
+
 const backgroundHeight = 432
 
 const camera = {
@@ -177,6 +289,40 @@ const camera = {
         x: 0,
         y: -backgroundHeight + scaledCanvas.height,
     },
+}
+
+function runPlayerAnimation(player, keys) {
+    player.checkForHorizontalCanvasCollisions()
+    player.update();
+    player.velocity.x = 0
+    
+    if (keys.d.pressed) {
+        player.velocity.x = 2
+        player.facingLeft = false
+        player.switchSprite('run')
+        player.panCameraToLeft(canvas, camera)
+    }
+    else if (keys.a.pressed) {
+        player.velocity.x = -2
+        player.facingLeft = true
+        player.switchSprite('runLeft')
+        player.panCameraToRight(camera)
+    }
+    else if (player.velocity.y === 0 && !player.isAttacking) {
+        if(player.facingLeft) player.switchSprite('idleLeft')
+        else player.switchSprite('idle')
+    }
+
+    if (player.velocity.y < 0) {
+        player.panCameraToDown(camera)
+        if(player.facingLeft) player.switchSprite('jumpLeft')
+        else player.switchSprite('jump')
+    } 
+    else if (player.velocity.y > 0) {
+        player.panCameraToUp(camera, canvas)
+        if(player.facingLeft) player.switchSprite('fallLeft')
+        else player.switchSprite('fall')
+    }
 }
 function animate() {
     window.requestAnimationFrame(animate)
@@ -186,37 +332,8 @@ function animate() {
     c.scale(4, 4)
     c.translate(camera.position.x, camera.position.y)
     background.update()
-    player1.checkForHorizontalCanvasCollisions()
-    player1.update();
-    player1.velocity.x = 0
-    
-    if (keys.d.pressed) {
-        player1.velocity.x = 2
-        player1.facingLeft = false
-        player1.switchSprite('run')
-        player1.panCameraToLeft(canvas, camera)
-    }
-    else if (keys.a.pressed) {
-        player1.velocity.x = -2
-        player1.facingLeft = true
-        player1.switchSprite('runLeft')
-        player1.panCameraToRight(camera)
-    }
-    else if (player1.velocity.y === 0 && !player1.isAttacking) {
-        if(player1.facingLeft) player1.switchSprite('idleLeft')
-        else player1.switchSprite('idle')
-    }
-
-    if (player1.velocity.y < 0) {
-        player1.panCameraToDown(camera)
-        if(player1.facingLeft) player1.switchSprite('jumpLeft')
-        else player1.switchSprite('jump')
-    } 
-    else if (player1.velocity.y > 0) {
-        player1.panCameraToUp(camera, canvas)
-        if(player1.facingLeft) player1.switchSprite('fallLeft')
-        else player1.switchSprite('fall')
-    }
+    runPlayerAnimation(player1, player1Keys)
+    runPlayerAnimation(player2, player2Keys)
     c.restore()
 }
 animate()
