@@ -70,23 +70,30 @@ window.addEventListener("keydown", event => {
                 player2.velocity.y = -4
             )
             break
+
         //Player 2 attack cases
         case "KeyI":
-            !player2.isAttacking && (
+            !player2.isAttacking &&(
                 player2.isAttacking = true,
+                player2.sounds.lowAttack.currentTime = 0,
+                player2.sounds.lowAttack.play(),
                 player2.switchSprite('attackLow')
             )
             break
         case "KeyO":
             !player2.isAttacking && (
                 player2.isAttacking = true,
+                player2.sounds.midAttack.currentTime = 0,
+                player2.sounds.midAttack.play(),
                 player2.switchSprite('attackMid')
             )
             break
         case "KeyP":
-        !player2.isAttacking && (
-            player2.isAttacking = true,
-            player2.switchSprite('attackOverhead')
+            !player2.isAttacking && (
+                player2.isAttacking = true,
+                player2.sounds.overheadAttack.currentTime = 0,
+                player2.sounds.overheadAttack.play(),
+                player2.switchSprite('attackOverhead')
             )
             break
     }
