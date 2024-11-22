@@ -32,3 +32,20 @@ window.addEventListener("resize", () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 })
+
+window.addEventListener("click", playMusic)
+window.addEventListener("keydown", playMusic)
+window.addEventListener("touchstart", playMusic)
+
+function playMusic() {
+    bgMusic.play().then(() => {
+        console.log("music played")
+    })
+    .catch(error => {
+        console.log("Error playing music", error)
+    })
+
+    window.removeEventListener("click", playMusic)
+    window.removeEventListener("keydown", playMusic)
+    window.removeEventListener("touchstart", playMusic)
+}

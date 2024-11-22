@@ -53,6 +53,11 @@ const background = new Sprite({
     position: {x: 0, y: 0}
 })
 
+const bgMusic = new Audio('/assets/audio/bg-music.mp3');
+bgMusic.volume = 0.5
+bgMusic.loop = true
+bgMusic.autoplay = true
+
 const player1 = new Player({
     imageSrc: "assets/images/warrior/Idle.png",
     position: {x: 100, y: 300},
@@ -105,40 +110,6 @@ const player1 = new Player({
     facingLeft: false
 });
 
-// const a = {pressed: false}
-// const w = {pressed: false}
-// const s = {pressed: false}
-// const d = {pressed: false}
-// const keys = {a,w,s,d}
-// window.addEventListener("keydown", event => {
-//     switch (event.code) {
-//         case "KeyA":
-//             keys.a.pressed = true;
-//             break
-//         case "KeyD":
-//             keys.d.pressed = true;
-//             break
-//         case "KeyW":
-//             keys.w.pressed = true;
-//             player1.velocity.y = -10;
-//             break
-//     }
-// })
-
-// window.addEventListener("keyup", event => {
-//     switch (event.code) {
-//         case "KeyA":
-//             keys.a.pressed = false;
-//             break
-//         case "KeyD":
-//             keys.d.pressed = false;
-//             break
-//     }
-// })
-// window.addEventListener("resize", () => {
-//     canvas.width = window.innerWidth;
-//     canvas.height = window.innerHeight;
-// })
 const backgroundHeight = 432
 
 const camera = {
