@@ -13,7 +13,10 @@ window.addEventListener("keydown", event => {
             keys.d.pressed = true;
             break
         case "KeyW":
-            player1.velocity.y = -4;
+            player1.canJump && (
+                player1.canJump = false,
+                player1.velocity.y = -4
+            )
             break
     }
 })

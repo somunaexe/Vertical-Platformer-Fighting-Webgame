@@ -6,6 +6,7 @@ class Player extends Sprite {
         this.platformBlocks = platformBlocks
         this.frames = frames
         this.facingLeft = facingLeft
+        this.canJump = false
         this.hitbox = {
             position: {
                 x: this.position.x + 35,
@@ -142,12 +143,14 @@ class Player extends Sprite {
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = block.position.y - offset - 0.01
+                    this.canJump = true
                     break
                 }
                 if(this.velocity.y < 0) {
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = block.position.y + block.height - offset + 0.01
+                    this.canJump = true
                     break
                 }
             }
@@ -163,6 +166,7 @@ class Player extends Sprite {
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = platformBlock.position.y - offset - 0.01
+                    this.canJump = true
                     break
                 }
             }
