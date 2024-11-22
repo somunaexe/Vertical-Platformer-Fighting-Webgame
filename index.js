@@ -106,6 +106,66 @@ const player1 = new Player({
             frames: 2,
             frameBuffer: 5
         },
+        attackLow: {
+            imageSrc: "assets/images/warrior/AttackLow.png",
+            frames: 6,
+            frameBuffer: 5
+        },
+        attackMid: {
+            imageSrc: "assets/images/warrior/AttackMid.png",
+            frames: 6,
+            frameBuffer: 5
+        },
+        attackOverhead: {
+            imageSrc: "assets/images/warrior/AttackOverhead.png",
+            frames: 6,
+            frameBuffer: 5
+        },
+        // attackLowLeft: {
+        //     imageSrc: "assets/images/warrior/AttackLowLeft.png",
+        //     frames: 6,
+        //     frameBuffer: 5
+        // },
+        // attackMidLeft: {
+        //     imageSrc: "assets/images/warrior/AttackMidLeft.png",
+        //     frames: 6,
+        //     frameBuffer: 5
+        // },
+        // attackOverheadLeft: {
+        //     imageSrc: "assets/images/warrior/AttackOverheadLeft.png",
+        //     frames: 6,
+        //     frameBuffer: 5
+        // },
+        hit: {
+            imageSrc: "assets/images/warrior/Hit.png",
+            frames: 2,
+            frameBuffer: 5
+        },
+        hitSilhouette: {
+            imageSrc: "assets/images/warrior/HitSilhouette.png",
+            frames: 2,
+            frameBuffer: 5
+        } ,
+        // hitSilhouetteLeft: {
+        //     imageSrc: "assets/images/warrior/HitSilhouetteLeft.png",
+        //     frames: 2,
+        //     frameBuffer: 5
+        // },
+        // hitLeft: {
+        //     imageSrc: "assets/images/warrior/HitLeft.png",
+        //     frames: 2,
+        //     frameBuffer: 5
+        // },
+        death: {
+            imageSrc: "assets/images/warrior/Death.png",
+            frames: 6,
+            frameBuffer: 5
+        },
+        // deathLeft: {
+        //     imageSrc: "assets/images/warrior/DeathLeft.png",
+        //     frames: 6,
+        //     frameBuffer: 5
+        // }
     },
     facingLeft: false
 });

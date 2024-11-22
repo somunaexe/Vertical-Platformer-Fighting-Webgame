@@ -5,6 +5,7 @@ const d = {pressed: false}
 const keys = {a,w,s,d}
 
 window.addEventListener("keydown", event => {
+    console.log(event.code)
     switch (event.code) {
         case "KeyA":
             keys.a.pressed = true;
@@ -18,6 +19,9 @@ window.addEventListener("keydown", event => {
                 player1.velocity.y = -4
             )
             break
+        case "KeyC":
+            player1.switchSprite('attackMid')
+        // case "L"
     }
 })
 
