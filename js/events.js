@@ -19,9 +19,24 @@ window.addEventListener("keydown", event => {
                 player1.velocity.y = -4
             )
             break
+        case "KeyX":
+            !player1.isAttacking && (
+                player1.isAttacking = true,
+                player1.switchSprite('attackLow')
+            )
+            break
         case "KeyC":
-            player1.switchSprite('attackMid')
-        // case "L"
+            !player1.isAttacking && (
+                player1.isAttacking = true,
+                player1.switchSprite('attackMid')
+            )
+            break
+        case "KeyV":
+        !player1.isAttacking && (
+            player1.isAttacking = true,
+            player1.switchSprite('attackOverhead')
+        )
+        break
     }
 })
 

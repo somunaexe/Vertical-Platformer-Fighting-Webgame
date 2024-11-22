@@ -65,6 +65,7 @@ const player1 = new Player({
     collisionBlocks,
     platformBlocks,
     frames: 8,
+    facingLeft: false,
     animations: {
         idle: {
             imageSrc: "assets/images/warrior/Idle.png",
@@ -108,17 +109,17 @@ const player1 = new Player({
         },
         attackLow: {
             imageSrc: "assets/images/warrior/AttackLow.png",
-            frames: 6,
-            frameBuffer: 5
+            frames: 4,
+            frameBuffer: 6
         },
         attackMid: {
             imageSrc: "assets/images/warrior/AttackMid.png",
-            frames: 6,
-            frameBuffer: 5
+            frames: 4,
+            frameBuffer: 4
         },
         attackOverhead: {
             imageSrc: "assets/images/warrior/AttackOverhead.png",
-            frames: 6,
+            frames: 4,
             frameBuffer: 5
         },
         // attackLowLeft: {
@@ -137,7 +138,7 @@ const player1 = new Player({
         //     frameBuffer: 5
         // },
         hit: {
-            imageSrc: "assets/images/warrior/Hit.png",
+            imageSrc: "assets/images/warrior/Take Hit.png",
             frames: 2,
             frameBuffer: 5
         },
@@ -167,7 +168,6 @@ const player1 = new Player({
         //     frameBuffer: 5
         // }
     },
-    facingLeft: false
 });
 
 const backgroundHeight = 432
@@ -202,7 +202,7 @@ function animate() {
         player1.switchSprite('runLeft')
         player1.panCameraToRight(camera)
     }
-    else if (player1.velocity.y === 0) {
+    else if (player1.velocity.y === 0 && !player1.isAttacking) {
         if(player1.facingLeft) player1.switchSprite('idleLeft')
         else player1.switchSprite('idle')
     }

@@ -3,6 +3,7 @@ class Sprite {
         this.position = position
         this.scale = scale
         this.loaded = false
+        this.isAttacking = false
         this.image = new Image()
         this.image.onload = () => {    
             this.width = (this.image.width / this.frames) * scale
@@ -49,8 +50,13 @@ class Sprite {
     updateFrames(){
         this.elapsedFrames++
         if (this.elapsedFrames % this.frameBuffer === 0) {
-            if (this.currentFrame < this.frames - 1) this.currentFrame++
-            else this.currentFrame = 0
+            if (this.currentFrame < this.frames - 1) {
+                this.currentFrame++
+            }
+            else {
+                this.currentFrame = 0
+                if(this.isAttacking) this.isAttacking = false
+            }
         }
     }
 }
