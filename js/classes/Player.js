@@ -139,7 +139,6 @@ class Player extends Sprite {
             const block = this.collisionBlocks[i]
 
             if(collision(this.hitbox, block)){
-                console.log("collided")
                 if(this.velocity.y > 0) {
                     this.collidedVertically = true
                     this.velocity.y = 0
@@ -159,12 +158,11 @@ class Player extends Sprite {
             }
         }
 
-        //Detects platform blocks
+        //Detects platform block
         for (let i =0; i < this.platformBlocks.length; i++) {
             const platformBlock = this.platformBlocks[i]
 
             if(platformCollision({object1 : this.hitbox, object2 : platformBlock})){
-                console.log("collided")
                 this.collidedVertically = true
                 if(this.velocity.y > 0) {
                     this.velocity.y = 0
