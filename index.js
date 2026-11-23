@@ -165,7 +165,9 @@ function animate(timestamp) {
     lastTimestamp = timestamp
 
     //Frame everyone. Done before the players move so the sprites and the camera agree this frame
-    updateCamera(players, app.screen, dt)
+    //Normally frame everyone; once the race is won, glide in on the winner (nobody is racing any more)
+    const cameraFocus = match.over && match.winner ? [match.winner] : players
+    updateCamera(cameraFocus, app.screen, dt)
 
     runPlayerAnimation(player1, player1Keys, dt)
     runPlayerAnimation(player2, player2Keys, dt)
