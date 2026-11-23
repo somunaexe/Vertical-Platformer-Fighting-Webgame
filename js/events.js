@@ -102,6 +102,13 @@ window.addEventListener("keydown", event => {
     }
 })
 
+// Clicking or tapping the game (not a button) starts a rematch once the round is over.
+// The short delay stops frantic button-mashing from skipping the winner's celebration.
+const REMATCH_TAP_DELAY = 800 //ms
+window.addEventListener("pointerdown", event => {
+    if (match.over && event.target instanceof HTMLCanvasElement && performance.now() - match.overAt > REMATCH_TAP_DELAY) resetMatch()
+})
+
 window.addEventListener("keyup", event => {
     for (const scheme of controlSchemes) {
         if (event.code === scheme.left) setMove(scheme, 'left', false)

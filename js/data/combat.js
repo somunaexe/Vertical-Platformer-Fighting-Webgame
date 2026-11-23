@@ -36,6 +36,7 @@ const ATTACKS = {
 // State of the current round
 const match = {
     over: false,
+    overAt: 0,    //When the round ended (performance.now() ms); used to delay tap-to-rematch
     winner: null, //The winning Player, or null for a draw (only meaningful when over is true)
 }
 
@@ -49,6 +50,7 @@ function checkDoorWin(players, door) {
     const arrived = players.filter(player => door.isReachedBy(player))
     if (arrived.length === 0) return
     match.over = true
+    match.overAt = performance.now()
     match.winner = arrived.length === 1 ? arrived[0] : null
     GameEvents.emit('win', {winner: match.winner, x: door.position.x + door.width / 2, y: door.position.y + door.height / 2})
 }
@@ -132,7 +134,7 @@ function createHud(p1, p2) {
     hud.captionRight.anchor.set(1, 0)
     hud.title.anchor.set(0.5)
     hud.subtitle.anchor.set(0.5)
-    hud.subtitle.text = 'Press Enter for a rematch'
+    hud.subtitle.text = (typeof TOUCH_MODE !== 'undefined' && TOUCH_MODE) ? 'Tap to play again' : 'Press Enter for a rematch'
     hudLayer.addChild(hud.graphics, hud.nameLeft, hud.nameRight, hud.captionLeft, hud.captionRight, hud.title, hud.subtitle)
 }
 
@@ -145,10 +147,14 @@ function updateHud(p1, p2) {
 
     const width = app.screen.width
     const height = app.screen.height
-    const margin = 20
+    // Everything scales with the screen's SHORT side so the HUD fits phones (ui = 1 on a desktop, 0.6 at smallest)
+    const ui = Math.min(1, Math.max(0.6, Math.min(width, height) / 640))
+    const touch = typeof TOUCH_MODE !== 'undefined' && TOUCH_MODE
+    const margin = 20 * ui
     const barWidth = Math.min(width * 0.35, 420)
-    const barHeight = 22
-    const barTop = margin + 18
+    const barHeight = 22 * ui
+    const barTop = margin + 18 * ui
+    for (const label of [hud.nameLeft, hud.nameRight, hud.captionLeft, hud.captionRight, hud.title, hud.subtitle]) label.scale.set(ui)
 
     const g = hud.graphics
     g.clear()
@@ -158,33 +164,34 @@ function updateHud(p1, p2) {
         const colour = ratio < 0.5 ? 0x4caf50 : ratio < 0.75 ? 0xe0a020 : 0xd03030
         g.rect(x, barTop, barWidth, barHeight).fill({color: 0x000000, alpha: 0.6})
         g.rect(alignRight ? x + barWidth - filled : x, barTop, filled, barHeight).fill(colour)
-        g.rect(x, barTop, barWidth, barHeight).stroke({width: 2, color: 0xffffff})
+        g.rect(x, barTop, barWidth, barHeight).stroke({width: 2 * ui, color: 0xffffff})
     }
     drawBar(p1, margin, false)
     drawBar(p2, width - margin - barWidth, true)
-    hud.nameLeft.position.set(margin, barTop - 4)
-    hud.nameRight.position.set(width - margin, barTop - 4)
-    hud.captionLeft.position.set(margin, barTop + barHeight + 3)
-    hud.captionRight.position.set(width - margin, barTop + barHeight + 3)
+    hud.nameLeft.position.set(margin, barTop - 4 * ui)
+    hud.nameRight.position.set(width - margin, barTop - 4 * ui)
+    hud.captionLeft.position.set(margin, barTop + barHeight + 3 * ui)
+    hud.captionRight.position.set(width - margin, barTop + barHeight + 3 * ui)
 
     // Race progress: a vertical track with the door at the top and a coloured dot per player
-    const trackX = width - 24
-    const trackTop = barTop + barHeight + 40
-    const trackBottom = height - 30
-    g.roundRect(trackX - 2, trackTop, 4, trackBottom - trackTop, 2).fill({color: 0xffffff, alpha: 0.35})
-    g.roundRect(trackX - 7, trackTop - 14, 14, 14, 3).fill(0xf2c14e) //The door
+    const trackX = width - 24 * ui
+    const trackTop = barTop + barHeight + 40 * ui
+    //On touch screens the buttons fill the bottom corner, so the track ends above them
+    const trackBottom = height - (touch ? 125 : 30 * ui)
+    g.roundRect(trackX - 2 * ui, trackTop, 4 * ui, trackBottom - trackTop, 2 * ui).fill({color: 0xffffff, alpha: 0.35})
+    g.roundRect(trackX - 7 * ui, trackTop - 14 * ui, 14 * ui, 14 * ui, 3 * ui).fill(0xf2c14e) //The door
     ;[p1, p2].forEach((player, i) => {
         const y = trackBottom - raceProgress(player) * (trackBottom - trackTop)
-        const x = trackX + (i === 0 ? -11 : 11) //Side by side so two players at the same height don't hide each other
-        g.circle(x, y, 7).fill(player.color).stroke({width: 2, color: 0xffffff})
+        const x = trackX + (i === 0 ? -11 : 11) * ui //Side by side so two players at the same height don't hide each other
+        g.circle(x, y, 7 * ui).fill(player.color).stroke({width: 2 * ui, color: 0xffffff})
     })
 
     hud.title.visible = hud.subtitle.visible = match.over
     if (match.over) {
-        g.rect(0, height / 2 - 70, width, 140).fill({color: 0x000000, alpha: 0.55})
+        g.rect(0, height / 2 - 70 * ui, width, 140 * ui).fill({color: 0x000000, alpha: 0.55})
         const message = match.winner ? `${match.winner.name} WINS!` : 'DRAW!'
         if (hud.title.text !== message) hud.title.text = message //Changing text rebuilds its texture, so only when needed
-        hud.title.position.set(width / 2, height / 2 - 10)
-        hud.subtitle.position.set(width / 2, height / 2 + 35)
+        hud.title.position.set(width / 2, height / 2 - 10 * ui)
+        hud.subtitle.position.set(width / 2, height / 2 + 35 * ui)
     }
 }
