@@ -34,6 +34,7 @@ A competitive **race to the top**. Every player climbs the same tall, vertical l
 - Frame-rate independent movement, jumping (with double jump) and animation
 - Sword combat: three attacks with wind-up, active frames, reach and knockback
 - Injury system: weaker climbing, slow recovery, faster when resting
+- Phone support: touch controls, responsive HUD, camera that keeps fighters clear of the buttons
 - Tall level built from stacked copies of the collision data, with a zoom-to-fit camera
 - PixiJS (WebGL) rendering
 - Game feel: hit sparks, landing dust, screen shake, white hit flash and win confetti, all driven by game events (`js/bus.js`)
@@ -51,6 +52,13 @@ A competitive **race to the top**. Every player climbs the same tall, vertical l
 | Low / Mid / Overhead attack | X / C / V | I / O / P |
 
 Press **Enter** after someone reaches the door for a rematch.
+
+### On a phone or tablet
+
+Touch screens get on-screen buttons automatically (add `?touch` to the URL to see them on a desktop):
+a d-pad on the left, **JUMP** and **LOW / MID / HIGH** attacks on the right. They control **Player 1**; hold
+a direction with one thumb and jump or attack with the other. Tap the game after a win to play again.
+Portrait suits the tall level best.
 
 - **Goal:** Reach the door at the top before anyone else
 
@@ -73,6 +81,7 @@ Vertical-Platformer-Fighting-Webgame/
 │   ├── audio.js      # Sound effects, reacting to game events
 │   ├── effects.js    # Particles: sparks, dust, confetti
 │   ├── events.js     # Keyboard controls, jump/attack actions, music
+│   ├── touch.js      # On-screen touch buttons for phones
 │   ├── utils.js      # Collision helpers
 │   ├── classes/      # Sprite, Player, CollisionBlock, AudioSFX
 │   └── data/         # Tiled collision data
