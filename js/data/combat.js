@@ -50,6 +50,7 @@ function checkDoorWin(players, door) {
     if (arrived.length === 0) return
     match.over = true
     match.winner = arrived.length === 1 ? arrived[0] : null
+    GameEvents.emit('win', {winner: match.winner, x: door.position.x + door.width / 2, y: door.position.y + door.height / 2})
 }
 
 /**

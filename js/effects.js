@@ -151,3 +151,17 @@ GameEvents.on('land', ({x, y, speed}) => {
         })
     }
 })
+
+// ---- Confetti: a celebration burst from the door when someone wins (or the race is a draw) ----
+GameEvents.on('win', ({x, y}) => {
+    burst({
+        x, y,
+        count: 70,
+        angle: -Math.PI / 2, //Straight up...
+        spread: 2.4,         //...fanning out to both sides
+        speedMin: 80, speedMax: 230,
+        life: 1.4, size: 2.5,
+        color: [0xff5d73, 0xffd34d, 0x4cd9a0, 0x4aa3ff, 0xc77dff],
+        gravity: 260, drag: 0.8,
+    })
+})
