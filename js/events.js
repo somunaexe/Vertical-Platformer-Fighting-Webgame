@@ -1,22 +1,9 @@
-// Only left/right are held-key states; jumping and attacking are one-shot actions handled on keydown
-const player1Keys = {
-    a: { pressed: false },
-    d: { pressed: false }
-};
-
-const player2Keys = {
-    a: { pressed: false },
-    d: { pressed: false }
-};
-
-const JUMP_SPEED = 240 //Initial upward speed of a jump, in pixels per second
-
 // One entry per player: which key does what.
 // `player` is a function because player1/player2 are created later, in index.js
 const controlSchemes = [
     {
         player: () => player1,
-        keys: player1Keys,
+        keys: playerKeys[0],
         left: "KeyA",
         right: "KeyD",
         jump: "KeyW",
@@ -24,44 +11,13 @@ const controlSchemes = [
     },
     {
         player: () => player2,
-        keys: player2Keys,
+        keys: playerKeys[1],
         left: "ArrowLeft",
         right: "ArrowRight",
         jump: "ArrowUp",
         attacks: { KeyI: 'low', KeyO: 'mid', KeyP: 'overhead' },
     },
 ]
-
-/**
- * Makes a player jump if they have any jumps left (2 = double jump), and announces it.
- * @param {Player} player - The player that should jump
- */
-function jump(player) {
-    if (player.jumps <= 0 || !player.canAct()) return
-    player.collidedVertically = false
-    player.jumps--
-    player.velocity.y = -JUMP_SPEED * player.jumpMultiplier //Injured players jump lower
-    GameEvents.emit('jump', {player})
-}
-
-/**
- * Starts an attack unless the player is already mid-attack (or can't act).
- * Announces the attack and plays the matching animation; Sprite.updateFrames resets isAttacking when the animation ends.
- * Whether the sword actually hurts anyone is decided each frame by resolveCombat.
- * @param {Player} player - The attacking player
- * @param {String} type - A key of ATTACKS: 'low', 'mid' or 'overhead'
- */
-function attack(player, type) {
-    if (player.isAttacking || !player.canAct()) return
-    const {animation} = ATTACKS[type]
-    player.isAttacking = true
-    player.currentAttack = type
-    player.attackHasHit = false
-    GameEvents.emit('attack', {player, type})
-    player.switchSprite(animation)
-    player.currentFrame = 0 //Start the swing from its first frame, even if the sheet was already showing
-    player.elapsedTime = 0
-}
 
 // ---- The three things a player can do ----
 // Keyboard, touch buttons (and later the network) all go through these, so every input method
