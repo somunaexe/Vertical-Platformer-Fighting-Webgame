@@ -94,6 +94,15 @@ function updateCamera(players, screen, dt, snap = false) {
     applyCamera(screen)
 }
 
+/** A calm view of the level's ground, shown behind the menu while no round is running. */
+function idleCamera(screen) {
+    const viewHeight = screen.height - cameraInsets.bottom
+    camera.zoom = Math.max(screen.width / LEVEL.width, viewHeight / 300)
+    camera.x = LEVEL.width / 2
+    camera.y = LEVEL.top + LEVEL.height - viewHeight / camera.zoom / 2 //Bottom of the level at the bottom of the view
+    applyCamera(screen)
+}
+
 /**
  * The camera is the world container's transform: scale it by the zoom,
  * then shift it so the camera's centre lands in the middle of the screen.

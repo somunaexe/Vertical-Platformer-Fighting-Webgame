@@ -21,7 +21,8 @@ const MAX_DT = 0.05 //Longest time step allowed, in seconds (= 20 frames per sec
  */
 function animate(timestamp) {
     window.requestAnimationFrame(animate)
-    if (!players.length) { //Between rounds (e.g. waiting in a lobby): nothing to simulate or frame
+    if (!players.length) { //Between rounds (menu, lobby): nothing to simulate; show the level behind the menu
+        idleCamera(app.screen)
         app.render()
         return
     }
@@ -89,12 +90,16 @@ function teardownRound() {
     match.winner = null
 }
 
-//How to start is chosen by the address: ?online, ?online=create or ?room=CODE joins a game server;
-//?players=N starts a local round with N players (2-12; the extras stand still, handy for testing crowds)
+//Normally the menu appears. The address can skip it: ?online, ?online=create or ?room=CODE joins a game server;
+//?local starts a local round, ?players=N a local round with N players (2-12; the extras stand still, handy for testing crowds)
 const params = new URLSearchParams(location.search)
 bootRenderer().then(() => {
-    if (params.has('room')) return connectOnline({mode: 'code', code: params.get('room')})
-    if (params.has('online')) return connectOnline({mode: params.get('online') === 'create' ? 'create' : 'quick'})
-    const requested = parseInt(params.get('players'), 10)
-    beginRound(Number.isInteger(requested) ? Math.min(MAX_PLAYERS, Math.max(2, requested)) : 2)
+    createMenu()
+    if (params.has('room')) return joinOnline({mode: 'code', code: params.get('room')})
+    if (params.has('online')) return joinOnline({mode: params.get('online') === 'create' ? 'create' : 'quick'})
+    if (params.has('local') || params.has('players')) {
+        const requested = parseInt(params.get('players'), 10)
+        return startLocal(Number.isInteger(requested) ? Math.min(MAX_PLAYERS, Math.max(2, requested)) : 2)
+    }
+    showMainMenu() //Normal start: the menu
 })

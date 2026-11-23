@@ -60,3 +60,88 @@ canvas {
 .touch-move   { width: 72px; height: 72px; font-size: 26px; }
 .touch-jump   { width: 92px; height: 92px; border-radius: 50%; font-size: 17px; }
 .touch-attack { width: 72px; height: 40px; border-radius: 12px; font-size: 13px; }
+
+/* ---- Menu, lobby and in-game Leave button (built by js/menu.js) ---- */
+[hidden] { display: none !important; }
+
+#menu {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+    background: rgba(8, 16, 24, 0.72);
+    font-family: sans-serif;
+    color: #fff;
+    touch-action: manipulation; /* Taps on the menu must work normally, unlike the game canvas */
+    overflow-y: auto;
+}
+.menu-card {
+    width: min(100%, 380px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+}
+.menu-card h1 { margin: 0; font-size: 40px; letter-spacing: 1px; }
+.menu-tagline { margin: 0 0 8px; color: #b9c6d2; font-size: 15px; }
+.menu-notice { margin: 0; color: #ffd34d; font-size: 15px; }
+.menu-button {
+    padding: 14px 16px;
+    font: bold 17px sans-serif;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.14);
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-radius: 12px;
+    cursor: pointer;
+}
+.menu-button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.24); }
+.menu-button.primary { background: #3d7fd9; border-color: #8fbcff; }
+.menu-button.primary:hover:not(:disabled) { background: #4d8fe9; }
+.menu-button:disabled { opacity: 0.4; cursor: not-allowed; }
+.menu-row { display: flex; gap: 8px; }
+.menu-row .menu-input { flex: 1; min-width: 0; }
+.menu-input {
+    padding: 12px;
+    font: bold 20px monospace;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 6px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-radius: 12px;
+}
+.room-code { font: bold 56px monospace; letter-spacing: 10px; padding-left: 10px; color: #ffd34d; }
+.lobby-count { margin: 0; font-size: 18px; }
+
+.leave-button {
+    position: fixed;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 15;
+    padding: 4px 14px;
+    font: bold 13px sans-serif;
+    color: #fff;
+    background: rgba(16, 32, 46, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 999px;
+    cursor: pointer;
+}
+.toast {
+    position: fixed;
+    top: 44px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 25;
+    padding: 6px 16px;
+    font: bold 14px sans-serif;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 999px;
+    pointer-events: none;
+}
