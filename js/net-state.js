@@ -5,7 +5,7 @@
 //   browser: network  ->  JSON  ->  applyGameSnapshot()
 //
 // Snapshot shape:
-//   { p: [ {x, y, anim, frame, left, inj, inv, flash}, ... ],   one entry per player, in slot order
+//   { p: [ {x, y, anim, frame, left, inj, inv, flash, gone}, ... ],   one entry per player, in slot order
 //     over: Boolean,      the round is finished
 //     win: Number }       slot of the winner, or -1 for none / a draw
 
@@ -25,6 +25,7 @@ function snapshotPlayer(player) {
         inj: roundTo(player.injury, 1),
         inv: player.invulnerableTimer > 0 ? 1 : 0, //Drawn see-through
         flash: player.flashTimer > 0 ? 1 : 0,      //Drawn solid white
+        gone: player.departed ? 1 : 0,             //Left the room
     }
 }
 
@@ -53,6 +54,8 @@ function applyPlayerSnapshot(player, s) {
     player.invulnerableTimer = s.inv ? 1 : 0 //Only "is it > 0" matters when drawing
     player.flashTimer = s.flash ? 1 : 0
     player.updateHitbox()        //The camera and HUD read the hitbox
+    player.departed = s.gone === 1
+    player.view.visible = !player.departed
 }
 
 /**

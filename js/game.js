@@ -18,15 +18,33 @@ let player1
 let player2
 let players = [] //Everyone in the race; the camera keeps all of them on screen
 
+// A room holds at most this many players. Everyone gets a "slot" (0 .. MAX_PLAYERS - 1) for the whole round.
+const MAX_PLAYERS = 12
+
 // Held-key state for each player slot: a = left, d = right. Jumping and attacking are one-shot actions.
-const MAX_PLAYERS = 4
 const playerKeys = Array.from({length: MAX_PLAYERS}, () => ({a: {pressed: false}, d: {pressed: false}}))
 
-// Where each player starts, their name and their HUD colour
-const SPAWNS = [
-    {name: 'PLAYER 1', color: 0x4aa3ff, x: 100, y: 300, facingLeft: false},
-    {name: 'PLAYER 2', color: 0xff7a59, x: 300, y: 300, facingLeft: true},
-]
+// One colour per slot, spread around the colour wheel so neighbours are easy to tell apart.
+// The first two keep their original blue and orange.
+const PLAYER_COLORS = [0x4aa3ff, 0xff7a59, 0x55dd88, 0xffd34d, 0xc77dff, 0x4de3e3, 0xff6fa5, 0xa3e04a, 0xff9f1c, 0x8c9eff, 0xe6e6e6, 0xd6806b]
+
+/**
+ * Where a player starts, their name and their HUD colour.
+ * Two players start apart facing each other (as in the original game); more are spread evenly
+ * across the floor, each facing the middle.
+ * @param {Number} slot - 0-based player slot
+ * @param {Number} count - How many players are in the round
+ */
+function spawnFor(slot, count) {
+    const x = count <= 2 ? [100, 300][slot] : 48 + slot * (480 / (count - 1))
+    return {
+        name: `PLAYER ${slot + 1}`,
+        color: PLAYER_COLORS[slot],
+        x,
+        y: 300,
+        facingLeft: count <= 2 ? slot === 1 : x > MAP_WIDTH / 2,
+    }
+}
 
 /**
  * Builds the animation table for a warrior. Returns a fresh object each call because
@@ -109,18 +127,24 @@ function createWarrior({name, color, x, y, facingLeft}) {
 /**
  * Creates the door and the players. Call once, after anything they need (textures, in the browser) is ready.
  * The door is created first so it draws behind the players.
+ * @param {Number} [count=2] - How many players are in the round (2 to MAX_PLAYERS)
  */
-function createRoundEntities() {
+function createRoundEntities(count = 2) {
     door = new Door({position: doorPosition(36)}) //On the highest platform of the top copy
-    players = SPAWNS.map(createWarrior)
-    ;[player1, player2] = players
+    players = Array.from({length: count}, (_, slot) => createWarrior(spawnFor(slot, count)))
+    ;[player1, player2] = players //The two keyboard schemes of local play control these
+}
+
+/** @returns {Player[]} Everyone still in the round (players who disconnected are ignored by the rules and the camera) */
+function activePlayers() {
+    return players.filter(player => !player.departed)
 }
 
 /** Starts a fresh round: no injuries, spawn positions. Announces 'reset' so the presentation can clear itself. */
 function resetMatch() {
     match.over = false
     match.winner = null
-    players.forEach(player => player.reset())
+    activePlayers().forEach(player => player.reset())
     GameEvents.emit('reset', {})
 }
 
@@ -203,7 +227,9 @@ function runPlayerAnimation(player, keys, dt) {
  * @param {Number} dt - Seconds to simulate
  */
 function stepGame(dt) {
-    players.forEach((player, slot) => runPlayerAnimation(player, playerKeys[slot], dt))
-    resolveCombat(players)
-    checkDoorWin(players, door)
+    players.forEach((player, slot) => {
+        if (!player.departed) runPlayerAnimation(player, playerKeys[slot], dt)
+    })
+    resolveCombat(activePlayers())
+    checkDoorWin(activePlayers(), door)
 }

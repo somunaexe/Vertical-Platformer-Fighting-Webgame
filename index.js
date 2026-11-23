@@ -7,7 +7,7 @@ const bgMusic = new AudioSFX({src: 'assets/audio/bg-music.mp3', volume: 0.5, aut
 // When a round restarts, the presentation clears its leftovers and the camera jumps back (no glide across the level)
 GameEvents.on('reset', () => {
     clearEffects()
-    updateCamera(players, app.screen, 0, true)
+    updateCamera(activePlayers(), app.screen, 0, true)
 })
 
 //Timing state for the game loop. Lives outside animate() so it survives between frames
@@ -30,7 +30,7 @@ function animate(timestamp) {
 
     //Frame everyone. Done before the players move so the sprites and the camera agree this frame
     //Normally frame everyone; once the race is won, glide in on the winner (nobody is racing any more)
-    const cameraFocus = match.over && match.winner ? [match.winner] : players
+    const cameraFocus = match.over && match.winner ? [match.winner] : activePlayers()
     updateCamera(cameraFocus, app.screen, dt)
 
     stepGame(dt) //All the rules live in game.js
@@ -56,9 +56,11 @@ async function startGame() {
         background.draw() //Static: positioned once, never animated
         backgrounds.push(background)
     }
-    createRoundEntities() //The door and the players (see game.js); after the background so they draw on top
+    //?players=N starts a local round with N players (2-12): the extras stand still, which is handy for testing crowds
+    const requested = parseInt(new URLSearchParams(location.search).get('players'), 10)
+    createRoundEntities(Number.isInteger(requested) ? Math.min(MAX_PLAYERS, Math.max(2, requested)) : 2) //The door and the players (see game.js); after the background so they draw on top
     initEffects() //After the players, so particles draw on top of them
-    updateCamera(players, app.screen, 0, true) //Start already framed, no glide from nowhere
+    updateCamera(activePlayers(), app.screen, 0, true) //Start already framed, no glide from nowhere
 
     window.requestAnimationFrame(animate)
 }
