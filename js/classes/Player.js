@@ -59,17 +59,19 @@ class Player extends Sprite {
         }
     }
 
-    panCameraToUp(camera, canvas){
-        if(this.cameraBox.position.y +this.cameraBox.height + this.velocity.y >= 432) return
+    panCameraToUp(camera, canvas, dt){
+        const step = this.velocity.y * dt
+        if(this.cameraBox.position.y +this.cameraBox.height + step >= 432) return
         if(this.cameraBox.position.y + this.cameraBox.height >= Math.abs(camera.position.y) + (canvas.height / 4)){
-            camera.position.y -= this.velocity.y
+            camera.position.y -= step
         }
     }
 
-    panCameraToDown(camera){
-        if(this.cameraBox.position.y + this.velocity.y <= 0) return
+    panCameraToDown(camera, dt){
+        const step = this.velocity.y * dt
+        if(this.cameraBox.position.y + step <= 0) return
         if(this.cameraBox.position.y <= Math.abs(camera.position.y))
-            camera.position.y -= this.velocity.y
+            camera.position.y -= step
     }
 
     checkForHorizontalCanvasCollisions(dt) {
@@ -81,19 +83,20 @@ class Player extends Sprite {
     switchSprite(key) {
         if(this.image === this.animations[key].image || !this.loaded) return
         this.currentFrame = 0
+        this.elapsedTime = 0
         this.image = this.animations[key].image
         this.frameBuffer = this.animations[key].frameBuffer
         this.frames = this.animations[key].frames
     }
     update(dt) {
-        this.updateFrames()
+        this.updateFrames(dt)
         this.updateHitbox()
         this.updateCameraBox()
         this.draw()
         this.position.x += this.velocity.x * dt;
         this.updateHitbox()
         this.checkForHorizontalCollisions()
-        this.applyGravity()
+        this.applyGravity(dt)
         this.updateHitbox()
         this.checkForVerticalCollisions()
     }
@@ -130,9 +133,9 @@ class Player extends Sprite {
         }
     }
 
-    applyGravity() {
-        this.velocity.y += gravity
-        this.position.y += this.velocity.y;
+    applyGravity(dt) {
+        this.velocity.y += gravity * dt //acceleration -> speed
+        this.position.y += this.velocity.y * dt //speed -> distance
     }
 
     checkForVerticalCollisions() {

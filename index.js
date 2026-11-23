@@ -6,7 +6,7 @@ const c = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const gravity = 0.15; //The drag/acceleration due to gravity on the player
+const gravity = 540; //Downward acceleration in pixels per second squared (was 0.15 per frame at 60 fps)
 
 //Canvas is scaled to fill entire screen. Hence, it's actual width and height are stored in scaledCanvas for calculations
 const scaledCanvas = {
@@ -184,14 +184,14 @@ function runPlayerAnimation(player, keys, dt) {
 
     //If player is jumping
     if (player.velocity.y < 0) {
-        player.panCameraToDown(camera) //Pan the camera to the down if the player is exceeding the top boundary
+        player.panCameraToDown(camera, dt) //Pan the camera to the down if the player is exceeding the top boundary
 
         //Switch to the jump animation depending on the player's facing direction
         if(player.facingLeft) player.switchSprite('jumpLeft')
         else player.switchSprite('jump')
     }
     else if (player.velocity.y > 0) {
-        player.panCameraToUp(camera, canvas) //Pan the camera to the up if the player is exceeding the bottom boundary
+        player.panCameraToUp(camera, canvas, dt) //Pan the camera to the up if the player is exceeding the bottom boundary
 
         //Switch to the fall animation depending on the player's facing direction
         if(player.facingLeft) player.switchSprite('fallLeft')
@@ -218,7 +218,7 @@ function animate(timestamp) {
     c.save()
     c.scale(4, 4)
     c.translate(camera.position.x, camera.position.y)
-    background.update()
+    background.update(dt)
     runPlayerAnimation(player1, player1Keys, dt)
     runPlayerAnimation(player2, player2Keys, dt)
     c.restore()

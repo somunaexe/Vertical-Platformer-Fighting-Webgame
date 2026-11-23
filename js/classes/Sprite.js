@@ -14,7 +14,7 @@ class Sprite {
         this.frames = frames
         this.currentFrame = 0
         this.frameBuffer = frameBuffer
-        this.elapsedFrames = 0
+        this.elapsedTime = 0 //Seconds spent on the current animation frame
     }
 
     draw() {
@@ -42,14 +42,22 @@ class Sprite {
         );
     }
 
-    update(){
+    update(dt){
         this.draw()
-        this.updateFrames()
+        this.updateFrames(dt)
     }
 
-    updateFrames(){
-        this.elapsedFrames++
-        if (this.elapsedFrames % this.frameBuffer === 0) {
+    /**
+     * Advances the animation based on elapsed time, so it plays at the same speed on any monitor.
+     * frameBuffer was authored as "game frames per animation frame" at 60 fps,
+     * so one animation frame lasts frameBuffer / 60 seconds.
+     * @param {Number} dt - Seconds elapsed since the previous game frame
+     */
+    updateFrames(dt){
+        const frameDuration = this.frameBuffer / 60
+        this.elapsedTime += dt
+        while (this.elapsedTime >= frameDuration) {
+            this.elapsedTime -= frameDuration
             if (this.currentFrame < this.frames - 1) {
                 this.currentFrame++
             }

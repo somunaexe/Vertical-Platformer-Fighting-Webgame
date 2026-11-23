@@ -9,6 +9,8 @@ const player2Keys = {
     d: { pressed: false }
 };
 
+const JUMP_SPEED = 240 //Initial upward speed of a jump, in pixels per second
+
 // Maps each attack type to the sound and animation it triggers
 const attackTypes = {
     low:      { sound: 'lowAttack',      animation: 'attackLow' },
@@ -45,7 +47,7 @@ function jump(player) {
     if (player.jumps <= 0) return
     player.collidedVertically = false
     player.jumps--
-    player.velocity.y = -4
+    player.velocity.y = -JUMP_SPEED
 
     player.sounds.jump.currentTime = 0
     player.sounds.jump.playbackRate = 2.0
