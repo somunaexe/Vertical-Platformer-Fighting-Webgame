@@ -113,6 +113,20 @@ class Player extends Sprite {
         this.position.y += this.velocity.y * dt //speed -> distance
     }
 
+    /**
+     * Announces a landing, but only for a real fall: a grounded player picks up a tiny downward speed
+     * from gravity every frame, and that must not count. Call BEFORE velocity.y is reset to 0.
+     */
+    announceLanding() {
+        if (this.velocity.y < LAND_EVENT_MIN_SPEED) return
+        GameEvents.emit('land', {
+            player: this,
+            speed: this.velocity.y,
+            x: this.hitbox.position.x + this.hitbox.width / 2,
+            y: this.hitbox.position.y + this.hitbox.height, //The feet
+        })
+    }
+
     checkForVerticalCollisions() {
         // Detects collision blocks
         for (let i =0; i < this.collisionBlocks.length; i++) {
@@ -120,6 +134,7 @@ class Player extends Sprite {
 
             if(collision(this.hitbox, block)){
                 if(this.velocity.y > 0) {
+                    this.announceLanding()
                     this.collidedVertically = true
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
@@ -144,6 +159,7 @@ class Player extends Sprite {
             if(platformCollision({object1 : this.hitbox, object2 : platformBlock})){
                 this.collidedVertically = true
                 if(this.velocity.y > 0) {
+                    this.announceLanding()
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = platformBlock.position.y - offset - 0.01

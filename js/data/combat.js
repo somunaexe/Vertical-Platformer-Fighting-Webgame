@@ -9,6 +9,7 @@ const INJURY_JUMP_FLOOR = 0.8
 // Injury heals on its own, slowly. Standing still heals faster, so resting costs time but pays off.
 const RECOVERY_RATE = 2             //Injury points healed per second while moving
 const RESTING_RECOVERY_MULTIPLIER = 2.5 //Healing speed-up while standing still on the ground
+const LAND_EVENT_MIN_SPEED = 110 //Slowest downward speed (px/s) that counts as a landing worth announcing (a ~11px fall)
 const HIT_STUN = 0.3            //Seconds a player is stunned (can't act) after being hit
 const INVULNERABLE_TIME = 0.5   //Seconds after a hit during which more hits are ignored
 // Knockback is the main weapon in a race: with no death, sending someone off a ledge is how you win time.
