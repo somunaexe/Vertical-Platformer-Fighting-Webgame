@@ -65,5 +65,10 @@ function createTouchControls(scheme) {
     document.body.append(root)
 }
 
+const TOUCH_CONTROLS_HEIGHT = 120 //Screen pixels along the bottom that the buttons cover
+
 //On touch devices the touch pad controls the first player (the other player keeps the keyboard)
-if (TOUCH_MODE) createTouchControls(controlSchemes[0])
+if (TOUCH_MODE) {
+    cameraInsets.bottom = TOUCH_CONTROLS_HEIGHT //Keep the fighters clear of the buttons
+    createTouchControls(controlSchemes[0])
+}
