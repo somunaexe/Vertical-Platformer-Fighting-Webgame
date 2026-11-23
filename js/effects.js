@@ -17,9 +17,11 @@ const effects = {
  * so the particles draw on top of them.
  */
 function initEffects() {
-    const square = new PIXI.Graphics().rect(0, 0, PARTICLE_TEXTURE_SIZE, PARTICLE_TEXTURE_SIZE).fill(0xffffff)
-    effects.texture = app.renderer.generateTexture(square)
-    effects.texture.source.scaleMode = "nearest"
+    if (!effects.texture) { //Made once and kept: the layer is rebuilt for every round, the texture need not be
+        const square = new PIXI.Graphics().rect(0, 0, PARTICLE_TEXTURE_SIZE, PARTICLE_TEXTURE_SIZE).fill(0xffffff)
+        effects.texture = app.renderer.generateTexture(square)
+        effects.texture.source.scaleMode = "nearest"
+    }
     effects.layer = new PIXI.Container()
     world.addChild(effects.layer)
 }

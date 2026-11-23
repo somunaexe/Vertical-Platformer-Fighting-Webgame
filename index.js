@@ -21,6 +21,10 @@ const MAX_DT = 0.05 //Longest time step allowed, in seconds (= 20 frames per sec
  */
 function animate(timestamp) {
     window.requestAnimationFrame(animate)
+    if (!players.length) { //Between rounds (e.g. waiting in a lobby): nothing to simulate or frame
+        app.render()
+        return
+    }
 
     // Seconds since the previous frame. On the very first frame there is no previous
     // timestamp, so dt is 0 (nothing moves yet) instead of NaN.
@@ -33,7 +37,7 @@ function animate(timestamp) {
     const cameraFocus = match.over && match.winner ? [match.winner] : activePlayers()
     updateCamera(cameraFocus, app.screen, dt)
 
-    stepGame(dt) //All the rules live in game.js
+    if (!net.active) stepGame(dt) //Local play: all the rules live in game.js. Online, the server runs them and snapshots arrive by network
 
     updateEffects(dt)
     updateHud(players)
@@ -41,10 +45,10 @@ function animate(timestamp) {
 }
 
 /**
- * Boots the game: starts Pixi, loads every image, builds the scene, then starts the loop.
+ * Starts Pixi, loads every image and builds the level's background. Done once per page.
  * Everything that needs a texture waits for this, because textures load asynchronously.
  */
-async function startGame() {
+async function bootRenderer() {
     const backgroundSrc = "assets/images/background.png"
     const sheets = Object.values(createWarriorAnimations()).map(animation => animation.imageSrc)
     await initRenderer([backgroundSrc, ...sheets])
@@ -56,13 +60,38 @@ async function startGame() {
         background.draw() //Static: positioned once, never animated
         backgrounds.push(background)
     }
-    //?players=N starts a local round with N players (2-12): the extras stand still, which is handy for testing crowds
-    const requested = parseInt(new URLSearchParams(location.search).get('players'), 10)
-    createRoundEntities(Number.isInteger(requested) ? Math.min(MAX_PLAYERS, Math.max(2, requested)) : 2) //The door and the players (see game.js); after the background so they draw on top
-    initEffects() //After the players, so particles draw on top of them
-    updateCamera(activePlayers(), app.screen, 0, true) //Start already framed, no glide from nowhere
-
     window.requestAnimationFrame(animate)
 }
 
-startGame()
+/**
+ * Starts a round: creates the door and the players and frames the camera on them.
+ * @param {Number} count - How many players (2 to MAX_PLAYERS)
+ */
+function beginRound(count) {
+    createRoundEntities(count) //The door and the players (see game.js); after the background so they draw on top
+    initEffects() //After the players, so particles draw on top of them
+    updateCamera(activePlayers(), app.screen, 0, true) //Start already framed, no glide from nowhere
+}
+
+/** Removes the current round's players, door and effects from the scene (before the next round, or when leaving). */
+function teardownRound() {
+    if (!players.length) return
+    clearEffects()
+    effects.layer.destroy()
+    for (const player of players) player.view.destroy()
+    door.view.destroy()
+    players = []
+    door = undefined
+    match.over = false
+    match.winner = null
+}
+
+//How to start is chosen by the address: ?online, ?online=create or ?room=CODE joins a game server;
+//?players=N starts a local round with N players (2-12; the extras stand still, handy for testing crowds)
+const params = new URLSearchParams(location.search)
+bootRenderer().then(() => {
+    if (params.has('room')) return connectOnline({mode: 'code', code: params.get('room')})
+    if (params.has('online')) return connectOnline({mode: params.get('online') === 'create' ? 'create' : 'quick'})
+    const requested = parseInt(params.get('players'), 10)
+    beginRound(Number.isInteger(requested) ? Math.min(MAX_PLAYERS, Math.max(2, requested)) : 2)
+})

@@ -56,6 +56,7 @@ function applyPlayerSnapshot(player, s) {
     player.updateHitbox()        //The camera and HUD read the hitbox
     player.departed = s.gone === 1
     player.view.visible = !player.departed
+    player.draw()                //Puppets never run update(), which is what normally copies their state onto the sprite
 }
 
 /**

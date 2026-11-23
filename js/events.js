@@ -30,11 +30,13 @@ const controlSchemes = [
  * @param {Boolean} pressed - true when the input goes down, false when it is released
  */
 function setMove(scheme, direction, pressed) {
+    if (net.active) return netSend({t: 'move', dir: direction, pressed}) //Online: the server moves me
     scheme.keys[direction === 'left' ? 'a' : 'd'].pressed = pressed
 }
 
 /** Jumps (a one-shot action; see jump() for the rules). */
 function doJump(scheme) {
+    if (net.active) return netSend({t: 'jump'})
     jump(scheme.player())
 }
 
@@ -43,12 +45,13 @@ function doJump(scheme) {
  * @param {String} type - 'low', 'mid' or 'overhead'
  */
 function doAttack(scheme, type) {
+    if (net.active) return netSend({t: 'attack', type})
     attack(scheme.player(), type)
 }
 
 // ---- Keyboard: translates key presses into the actions above ----
 window.addEventListener("keydown", event => {
-    if (event.code === "Enter" && match.over) resetMatch()
+    if (event.code === "Enter" && match.over) requestRematch()
 
     for (const scheme of controlSchemes) {
         if (event.code === scheme.left) setMove(scheme, 'left', true)
@@ -62,7 +65,15 @@ window.addEventListener("keydown", event => {
 // The short delay stops frantic button-mashing from skipping the winner's celebration.
 const REMATCH_TAP_DELAY = 800 //ms
 window.addEventListener("pointerdown", event => {
-    if (match.over && event.target instanceof HTMLCanvasElement && performance.now() - match.overAt > REMATCH_TAP_DELAY) resetMatch()
+    if (match.over && event.target instanceof HTMLCanvasElement && performance.now() - match.overAt > REMATCH_TAP_DELAY) requestRematch()
+})
+
+// If the window loses focus while a key is held, the keyup never arrives and the character would keep walking
+window.addEventListener("blur", () => {
+    for (const scheme of controlSchemes) {
+        setMove(scheme, 'left', false)
+        setMove(scheme, 'right', false)
+    }
 })
 
 window.addEventListener("keyup", event => {

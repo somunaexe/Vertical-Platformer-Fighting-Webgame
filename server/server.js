@@ -22,7 +22,7 @@ const MIME = {
 }
 
 // Only these parts of the project are public. Everything else (server code, tests, package.json, .git ...) is refused.
-const PUBLIC_FILES = new Set(['index.html', 'index.css'])
+const PUBLIC_FILES = new Set(['index.html', 'index.css', 'index.js'])
 const PUBLIC_FOLDERS = ['js/', 'assets/']
 
 /**

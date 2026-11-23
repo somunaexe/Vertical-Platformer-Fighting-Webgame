@@ -65,6 +65,19 @@ test('serves the game files and refuses everything else', async t => {
     assert.strictEqual((await request(port, '/', 'HEAD')).body.length, 0)
 })
 
+test('every file the page references is actually served', async t => {
+    const {port, close} = await startServer()
+    t.after(close)
+    const html = (await request(port, '/')).body.toString()
+    // Every <script src> and <link href> in index.html
+    const referenced = [...html.matchAll(/(?:src|href)="\.?\/?([^"]+)"/g)].map(match => '/' + match[1])
+    assert.ok(referenced.length >= 20, `expected many references, found ${referenced.length}`)
+    assert.ok(referenced.includes('/index.js'))
+    for (const path of referenced) {
+        assert.strictEqual((await request(port, path)).status, 200, `${path} is referenced by index.html but not served`)
+    }
+})
+
 test('two players meet, play, and see each other move over WebSockets', async t => {
     const {port, close} = await startServer()
     t.after(close)
