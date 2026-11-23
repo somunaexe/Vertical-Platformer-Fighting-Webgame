@@ -99,6 +99,7 @@ class Player extends Sprite {
     update(dt) {
         this.hitTimer = Math.max(0, this.hitTimer - dt)
         this.invulnerableTimer = Math.max(0, this.invulnerableTimer - dt)
+        this.recoverInjury(dt)
         this.updateFrames(dt)
         this.updateHitbox()
         this.updateCameraBox()
@@ -109,6 +110,18 @@ class Player extends Sprite {
         this.applyGravity(dt)
         this.updateHitbox()
         this.checkForVerticalCollisions()
+    }
+
+    /**
+     * Heals injury over time. Faster while resting (standing still on the ground, not attacking);
+     * not at all while stunned. Velocities here are still last frame's, i.e. what the player was just doing.
+     * @param {Number} dt - Seconds elapsed since the previous frame
+     */
+    recoverInjury(dt) {
+        if (this.hitTimer > 0 || match.over) return
+        const resting = this.velocity.x === 0 && this.velocity.y === 0 && !this.isAttacking
+        const rate = RECOVERY_RATE * (resting ? RESTING_RECOVERY_MULTIPLIER : 1)
+        this.injury = Math.max(0, this.injury - rate * dt)
     }
 
     updateHitbox(){
