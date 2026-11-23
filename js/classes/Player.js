@@ -36,9 +36,7 @@ class Player extends Sprite {
         this.animations = animations
 
         for (let key in this.animations) {
-            const image = new Image()
-            image.src = this.animations[key].imageSrc
-            this.animations[key].image = image
+            this.animations[key].textures = sheetFrames(this.animations[key].imageSrc, this.animations[key].frames)
         }
         this.sounds = sounds
     }
@@ -90,10 +88,11 @@ class Player extends Sprite {
             this.velocity.x = 0
     }
     switchSprite(key) {
-        if(this.image === this.animations[key].image || !this.loaded) return
+        const animation = this.animations[key]
+        if(this.textures === animation.textures) return //Already showing this animation
         this.currentFrame = 0
         this.elapsedTime = 0
-        this.image = this.animations[key].image
+        this.textures = animation.textures
         this.mirrorWhenLeft = !!this.animations[key].mirrorWhenLeft
         this.frameBuffer = this.animations[key].frameBuffer
         this.frames = this.animations[key].frames
@@ -196,16 +195,14 @@ class Player extends Sprite {
      * and see-through while invulnerable.
      */
     draw() {
-        this.flipX = this.loaded && this.facingLeft && this.mirrorWhenLeft
+        this.flipX = this.facingLeft && this.mirrorWhenLeft
         if (this.flipX) {
             //Mirroring about the sprite centre would move the body, so nudge it back under the hitbox
             const bodyCentre = this.hitbox.position.x - this.position.x + this.hitbox.width / 2
             this.flipShift = 2 * (bodyCentre - this.width / 2)
         }
-        c.save()
-        if (this.invulnerableTimer > 0) c.globalAlpha = 0.6
+        this.view.alpha = this.invulnerableTimer > 0 ? 0.6 : 1
         super.draw()
-        c.restore()
     }
 
     /** True when the player is free to start a jump or attack. */

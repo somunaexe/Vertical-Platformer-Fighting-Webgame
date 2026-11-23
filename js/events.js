@@ -85,10 +85,9 @@ window.addEventListener("keyup", event => {
     }
 })
 
-//Resize the canvas to fit the window
+//Resize the canvas to fit the window (the renderer doesn't exist until startGame has run)
 window.addEventListener("resize", () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    if (app.renderer) app.renderer.resize(window.innerWidth, window.innerHeight)
 })
 
 //Start playing the music on first interaction (browsers block autoplay until the user interacts)

@@ -1,17 +1,9 @@
-//Instantiate the canvas using the canvas html tag and context
-const canvas = document.querySelector("canvas");
-const c = canvas.getContext('2d');
-
-//Set the canvas width and height
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
 const gravity = 540; //Downward acceleration in pixels per second squared (was 0.15 per frame at 60 fps)
 
-//Canvas is scaled to fill entire screen. Hence, it's actual width and height are stored in scaledCanvas for calculations
+//The world is drawn at SCALE x, so the screen shows window / SCALE world pixels. Used to place the camera
 const scaledCanvas = {
-    width: canvas.width / 4,
-    height: canvas.height / 4
+    width: window.innerWidth / SCALE,
+    height: window.innerHeight / SCALE
 }
 
 //Set up a 2D array to store the collision tileset data
@@ -57,11 +49,10 @@ platformCollisions2D.forEach((row, y) => {
     })
 })
 
-//Add the background sprite
-const background = new Sprite({
-    imageSrc: "assets/images/background.png",
-    position: {x: 0, y: 0}
-})
+//Created in startGame() once Pixi and the textures are ready
+let background
+let player1
+let player2
 
 //Add the background music
 const bgMusic = new AudioSFX({src: 'assets/audio/bg-music.mp3', volume: 0.5, autoplay: true, loop: true});
@@ -142,9 +133,6 @@ function createWarrior({name, x, y, facingLeft}) {
     })
 }
 
-const player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
-const player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
-
 const backgroundHeight = 432
 //Camera object for tracking the player
 const cameraStart = {x: 0, y: -backgroundHeight + scaledCanvas.height}
@@ -181,7 +169,7 @@ function runPlayerAnimation(player, keys, dt) {
 
     //The camera follows vertical movement in every state (jumping, falling, even while stunned)
     if (player.velocity.y < 0) player.panCameraToDown(camera, dt) //Pan the camera down if the player is exceeding the top boundary
-    else if (player.velocity.y > 0) player.panCameraToUp(camera, canvas, dt) //Pan the camera up if the player is exceeding the bottom boundary
+    else if (player.velocity.y > 0) player.panCameraToUp(camera, app.screen, dt) //Pan the camera up if the player is exceeding the bottom boundary
 
     //Dead: stay down on the last frame of the death animation
     if (player.isDead) {
@@ -206,7 +194,7 @@ function runPlayerAnimation(player, keys, dt) {
         player.velocity.x = MOVE_SPEED //Move the player right (pixels per second)
         player.facingLeft = false //Set the player's facing direction
         player.switchSprite('run') //Switch to the run animation
-        player.panCameraToLeft(canvas, camera, dt) //Pan the camera to the left if the player is exceeding the right boundary
+        player.panCameraToLeft(app.screen, camera, dt) //Pan the camera to the left if the player is exceeding the right boundary
     }
     else if (input.a.pressed) {
         player.velocity.x = -MOVE_SPEED //Move the player left (pixels per second)
@@ -224,7 +212,7 @@ function runPlayerAnimation(player, keys, dt) {
 }
 
 /**
- * Continuously animates the game frame by clearing the canvas, updating
+ * Runs one game frame: measures dt, updates players and combat, then has Pixi paint it.
  * the background and player animations, and applying camera transformations.
  * Utilizes requestAnimationFrame for smooth rendering.
  */
@@ -237,17 +225,32 @@ function animate(timestamp) {
     const dt = lastTimestamp === null ? 0 : Math.min((timestamp - lastTimestamp) / 1000, MAX_DT)
     lastTimestamp = timestamp
 
-    c.fillStyle = 'white';
-    c.fillRect(0, 0, canvas.width, canvas.height);
-    c.save()
-    c.scale(4, 4)
-    c.translate(camera.position.x, camera.position.y)
-    background.update(dt)
+    //Camera -> screen: the world is scaled by SCALE, then shifted by the camera
+    world.position.set(camera.position.x * SCALE, camera.position.y * SCALE)
+
     runPlayerAnimation(player1, player1Keys, dt)
     runPlayerAnimation(player2, player2Keys, dt)
     resolveCombat(player1, player2)
-    c.restore()
 
-    drawHud(player1, player2)
+    updateHud(player1, player2)
+    app.render() //One paint per game frame, after all state is updated
 }
-window.requestAnimationFrame(animate)
+
+/**
+ * Boots the game: starts Pixi, loads every image, builds the scene, then starts the loop.
+ * Everything that needs a texture waits for this, because textures load asynchronously.
+ */
+async function startGame() {
+    const backgroundSrc = "assets/images/background.png"
+    const sheets = Object.values(createWarriorAnimations()).map(animation => animation.imageSrc)
+    await initRenderer([backgroundSrc, ...sheets])
+
+    background = new Sprite({imageSrc: backgroundSrc, position: {x: 0, y: 0}})
+    background.draw() //Static: positioned once, never animated
+    player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
+    player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
+
+    window.requestAnimationFrame(animate)
+}
+
+startGame()

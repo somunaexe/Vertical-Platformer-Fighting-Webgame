@@ -22,7 +22,7 @@ The goal is to reach the top while surviving enemy encounters and mastering move
 - HTML5
 - CSS3
 - JavaScript (Vanilla)
-- Canvas API (if used for rendering)
+- [PixiJS](https://pixijs.com) v8 (WebGL rendering, vendored in `js/vendor/`, MIT licence)
 - GitHub Pages (for deployment, if applicable)
 
 ---
@@ -63,6 +63,8 @@ Vertical-Platformer-Fighting-Webgame/
 ├── index.css         # Game styling
 ├── index.js          # Level setup, player creation, game loop
 ├── js/
+│   ├── render.js     # PixiJS setup, texture loading, spritesheet slicing
+│   ├── vendor/       # pixi.min.js (PixiJS 8.5.2) and its licence
 │   ├── events.js     # Keyboard controls, jump/attack actions, music
 │   ├── utils.js      # Collision helpers
 │   ├── classes/      # Sprite, Player, CollisionBlock, AudioSFX

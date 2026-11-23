@@ -59,41 +59,66 @@ function resolveCombat(p1, p2) {
     }
 }
 
-/**
- * Draws the health bars and the end-of-round message in screen space
- * (call it after the camera transform has been restored).
- */
-function drawHud(p1, p2) {
-    const margin = 20
-    const barWidth = Math.min(canvas.width * 0.35, 420)
-    const barHeight = 22
+// Pixi objects for the HUD, created on the first updateHud() call
+let hud = null
 
+function createHud(p1, p2) {
+    const text = (size, weight) => new PIXI.Text({
+        text: '',
+        style: {fontFamily: 'sans-serif', fontSize: size, fontWeight: weight, fill: 0xffffff},
+    })
+    hud = {
+        graphics: new PIXI.Graphics(), //Bars and the banner background, redrawn every frame
+        nameLeft: text(16, 'bold'),
+        nameRight: text(16, 'bold'),
+        title: text(48, 'bold'),
+        subtitle: text(20, 'normal'),
+    }
+    hud.nameLeft.text = p1.name
+    hud.nameRight.text = p2.name
+    hud.nameLeft.anchor.set(0, 1)
+    hud.nameRight.anchor.set(1, 1)
+    hud.title.anchor.set(0.5)
+    hud.subtitle.anchor.set(0.5)
+    hud.subtitle.text = 'Press Enter for a rematch'
+    hudLayer.addChild(hud.graphics, hud.nameLeft, hud.nameRight, hud.title, hud.subtitle)
+}
+
+/**
+ * Syncs the health bars and the end-of-round banner with the game state.
+ * Lives in screen space (hudLayer), so it ignores the camera. Call once per frame.
+ */
+function updateHud(p1, p2) {
+    if (!hud) createHud(p1, p2)
+
+    const width = app.screen.width
+    const height = app.screen.height
+    const margin = 20
+    const barWidth = Math.min(width * 0.35, 420)
+    const barHeight = 22
+    const barTop = margin + 18
+
+    const g = hud.graphics
+    g.clear()
     const drawBar = (player, x, alignRight) => {
         const ratio = player.health / MAX_HEALTH
         const filled = barWidth * ratio
-        c.fillStyle = 'rgba(0, 0, 0, 0.6)'
-        c.fillRect(x, margin + 18, barWidth, barHeight)
-        c.fillStyle = ratio > 0.5 ? '#4caf50' : ratio > 0.25 ? '#e0a020' : '#d03030'
-        c.fillRect(alignRight ? x + barWidth - filled : x, margin + 18, filled, barHeight)
-        c.strokeStyle = 'white'
-        c.lineWidth = 2
-        c.strokeRect(x, margin + 18, barWidth, barHeight)
-        c.fillStyle = 'white'
-        c.font = 'bold 16px sans-serif'
-        c.textAlign = alignRight ? 'right' : 'left'
-        c.fillText(player.name, alignRight ? x + barWidth : x, margin + 12)
+        const colour = ratio > 0.5 ? 0x4caf50 : ratio > 0.25 ? 0xe0a020 : 0xd03030
+        g.rect(x, barTop, barWidth, barHeight).fill({color: 0x000000, alpha: 0.6})
+        g.rect(alignRight ? x + barWidth - filled : x, barTop, filled, barHeight).fill(colour)
+        g.rect(x, barTop, barWidth, barHeight).stroke({width: 2, color: 0xffffff})
     }
     drawBar(p1, margin, false)
-    drawBar(p2, canvas.width - margin - barWidth, true)
+    drawBar(p2, width - margin - barWidth, true)
+    hud.nameLeft.position.set(margin, barTop - 4)
+    hud.nameRight.position.set(width - margin, barTop - 4)
 
+    hud.title.visible = hud.subtitle.visible = match.over
     if (match.over) {
-        c.fillStyle = 'rgba(0, 0, 0, 0.55)'
-        c.fillRect(0, canvas.height / 2 - 70, canvas.width, 140)
-        c.fillStyle = 'white'
-        c.textAlign = 'center'
-        c.font = 'bold 48px sans-serif'
-        c.fillText(match.winner ? `${match.winner.name} WINS!` : 'DRAW!', canvas.width / 2, canvas.height / 2 + 5)
-        c.font = '20px sans-serif'
-        c.fillText('Press Enter for a rematch', canvas.width / 2, canvas.height / 2 + 45)
+        g.rect(0, height / 2 - 70, width, 140).fill({color: 0x000000, alpha: 0.55})
+        const message = match.winner ? `${match.winner.name} WINS!` : 'DRAW!'
+        if (hud.title.text !== message) hud.title.text = message //Changing text rebuilds its texture, so only when needed
+        hud.title.position.set(width / 2, height / 2 - 10)
+        hud.subtitle.position.set(width / 2, height / 2 + 35)
     }
 }
