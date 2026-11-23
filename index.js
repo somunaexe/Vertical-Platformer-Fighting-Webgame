@@ -1,50 +1,10 @@
 const gravity = 540; //Downward acceleration in pixels per second squared (was 0.15 per frame at 60 fps)
 
-//Set up a 2D array to store the collision tileset data
-const floorCollisions2D = []
-for (let i = 0; i < floorCollisions.length; i+= 36) {
-    floorCollisions2D.push(floorCollisions.slice(i, i + 36))//Each pushed/sliced array represents a row
-}
-
-//Set up collision blocks in the canvas using the collision tileset data
-const collisionBlocks = []
-floorCollisions2D.forEach((row, y) => {
-    row.forEach((symbol, x) => {
-        if (symbol === 202) {
-            collisionBlocks.push(new CollisionBlock({
-                position: {
-                    x: x * 16,
-                    y: y * 16
-                }
-            }))
-        }
-    })
-})
-
-//Set up a 2D array to store the platform collision tileset data
-const platformCollisions2D = []
-for (let i = 0; i < platformCollisions.length; i+= 36) {
-    platformCollisions2D.push(platformCollisions.slice(i, i + 36))
-}
-
-//Set up platform collision blocks in the canvas using the collision tileset data
-const platformBlocks = []
-platformCollisions2D.forEach((row, y) => {
-    row.forEach((symbol, x) => {
-        if (symbol === 202) {
-            platformBlocks.push(new CollisionBlock({
-                position: {
-                    x: x * 16,
-                    y: y * 16
-                },
-                height: 4,
-            }))
-        }
-    })
-})
+//Collision blocks for the whole tall level (see js/level.js)
+const {collisionBlocks, platformBlocks} = buildLevel()
 
 //Created in startGame() once Pixi and the textures are ready
-let background
+let backgrounds = [] //The background image repeated to cover the tall level
 let door
 let player1
 let player2
@@ -222,10 +182,14 @@ async function startGame() {
     const sheets = Object.values(createWarriorAnimations()).map(animation => animation.imageSrc)
     await initRenderer([backgroundSrc, ...sheets])
 
-    background = new Sprite({imageSrc: backgroundSrc, position: {x: 0, y: 0}})
-    background.draw() //Static: positioned once, never animated
-    //The door sits on the highest platform of the map (platform tiles x 12-14, y = 4 tiles = 64px)
-    door = new Door({position: {x: 12 * 16 + 12, y: 4 * 16 - 36}})
+    //Stack copies of the background upwards from the bottom of the level until the top is covered
+    const backgroundCount = Math.ceil(LEVEL.height / BACKGROUND_HEIGHT)
+    for (let i = 0; i < backgroundCount; i++) {
+        const background = new Sprite({imageSrc: backgroundSrc, position: {x: 0, y: -i * BACKGROUND_HEIGHT}})
+        background.draw() //Static: positioned once, never animated
+        backgrounds.push(background)
+    }
+    door = new Door({position: doorPosition(36)}) //On the highest platform of the top copy
     player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
     player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
     players = [player1, player2]
