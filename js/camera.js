@@ -4,6 +4,7 @@
 
 const CAMERA_PADDING = 56 //Free space (world pixels) kept around the outermost players
 const MAX_ZOOM = 6        //Closest the camera gets, e.g. when everyone stands together
+const CAMERA_SMOOTHING = 5 //How quickly the camera catches up with its target (per second); higher = snappier
 
 // The camera's state: where it looks (world pixels) and how magnified the world is
 const camera = {x: 0, y: 0, zoom: 4}
@@ -52,12 +53,23 @@ function clampToLevel(centre, viewSize, start, size) {
 }
 
 /**
- * Moves the camera to frame everyone and applies it to the Pixi world container.
+ * Moves the camera TOWARDS the spot that frames everyone, and applies it to the Pixi world container.
+ * Each frame it closes a fixed fraction of the remaining distance (exponential smoothing), so it
+ * glides: fast when far from the target, gentle as it arrives. The fraction depends on dt,
+ * so the glide takes the same time on any monitor.
  * @param {Player[]} players
  * @param {{width: number, height: number}} screen
+ * @param {Number} dt - Seconds since the previous frame
+ * @param {Boolean} [snap=false] - Jump straight to the target (used at the start and on a rematch)
  */
-function updateCamera(players, screen) {
-    Object.assign(camera, cameraTarget(players, screen))
+function updateCamera(players, screen, dt, snap = false) {
+    const target = cameraTarget(players, screen)
+    const catchUp = snap ? 1 : 1 - Math.exp(-CAMERA_SMOOTHING * dt)
+
+    camera.x += (target.x - camera.x) * catchUp
+    camera.y += (target.y - camera.y) * catchUp
+    // Zoom is multiplicative (2x -> 4x feels like 4x -> 8x), so ease it in log space
+    camera.zoom = Math.exp(Math.log(camera.zoom) + (Math.log(target.zoom) - Math.log(camera.zoom)) * catchUp)
     applyCamera(screen)
 }
 

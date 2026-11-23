@@ -244,6 +244,7 @@ class Player extends Sprite {
     reset() {
         this.position.x = this.spawn.x
         this.position.y = this.spawn.y
+        this.updateHitbox() //The camera reads the hitbox, which would otherwise lag a frame behind the move
         this.velocity.x = 0
         this.velocity.y = 0
         this.facingLeft = this.spawn.facingLeft

@@ -135,6 +135,7 @@ function resetMatch() {
     match.winner = null
     player1.reset()
     player2.reset()
+    updateCamera(players, app.screen, 0, true) //Don't glide across the level back to the start
 }
 
 //Timing state for the game loop. Lives outside animate() so it survives between frames
@@ -201,7 +202,7 @@ function animate(timestamp) {
     lastTimestamp = timestamp
 
     //Frame everyone. Done before the players move so the sprites and the camera agree this frame
-    updateCamera(players, app.screen)
+    updateCamera(players, app.screen, dt)
 
     runPlayerAnimation(player1, player1Keys, dt)
     runPlayerAnimation(player2, player2Keys, dt)
@@ -228,7 +229,7 @@ async function startGame() {
     player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
     player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
     players = [player1, player2]
-    updateCamera(players, app.screen) //Start already framed
+    updateCamera(players, app.screen, 0, true) //Start already framed, no glide from nowhere
 
     window.requestAnimationFrame(animate)
 }
