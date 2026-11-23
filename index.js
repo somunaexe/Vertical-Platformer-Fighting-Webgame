@@ -31,8 +31,8 @@ function createWarriorAnimations() {
         ['attackLow',      'AttackLow.png',      4, 6],
         ['attackMid',      'AttackMid.png',      4, 4],
         ['attackOverhead', 'AttackOverhead.png', 4, 5],
-        ['hit',            'Take Hit.png',       2, 5],
-        ['hitSilhouette',  'HitSilhouette.png',  2, 5],
+        ['hit',            'Take Hit.png',       4, 5],
+        ['hitSilhouette',  'HitSilhouette.png',  4, 5],
         ['death',          'Death.png',          6, 5],
     ]
     const animations = {}
