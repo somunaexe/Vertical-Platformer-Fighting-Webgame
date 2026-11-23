@@ -27,6 +27,7 @@ class Player extends Sprite {
             height: 27,
         }
         this.animations = animations
+        this.animationKey = facingLeft ? 'idleLeft' : 'idle' //Matches the sheet the Sprite constructor started with
 
         for (let key in this.animations) {
             this.animations[key].textures = sheetFrames(this.animations[key].imageSrc, this.animations[key].frames)
@@ -46,6 +47,7 @@ class Player extends Sprite {
         this.currentFrame = 0
         this.elapsedTime = 0
         this.textures = animation.textures
+        this.animationKey = key //Remembered by name so the animation can be described in a network snapshot
         this.mirrorWhenLeft = !!this.animations[key].mirrorWhenLeft
         this.frameBuffer = this.animations[key].frameBuffer
         this.frames = this.animations[key].frames
