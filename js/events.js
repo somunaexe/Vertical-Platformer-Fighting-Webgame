@@ -63,21 +63,49 @@ function attack(player, type) {
     player.elapsedTime = 0
 }
 
+// ---- The three things a player can do ----
+// Keyboard, touch buttons (and later the network) all go through these, so every input method
+// behaves identically. `scheme` is an entry of controlSchemes: it identifies which player is acting.
+
+/**
+ * Starts or stops walking in a direction (held state; released when the key/button is let go).
+ * @param {Object} scheme - Which player (an entry of controlSchemes)
+ * @param {String} direction - 'left' or 'right'
+ * @param {Boolean} pressed - true when the input goes down, false when it is released
+ */
+function setMove(scheme, direction, pressed) {
+    scheme.keys[direction === 'left' ? 'a' : 'd'].pressed = pressed
+}
+
+/** Jumps (a one-shot action; see jump() for the rules). */
+function doJump(scheme) {
+    jump(scheme.player())
+}
+
+/**
+ * Swings the sword (a one-shot action; see attack() for the rules).
+ * @param {String} type - 'low', 'mid' or 'overhead'
+ */
+function doAttack(scheme, type) {
+    attack(scheme.player(), type)
+}
+
+// ---- Keyboard: translates key presses into the actions above ----
 window.addEventListener("keydown", event => {
     if (event.code === "Enter" && match.over) resetMatch()
 
     for (const scheme of controlSchemes) {
-        if (event.code === scheme.left) scheme.keys.a.pressed = true
-        else if (event.code === scheme.right) scheme.keys.d.pressed = true
-        else if (event.code === scheme.jump) jump(scheme.player())
-        else if (event.code in scheme.attacks) attack(scheme.player(), scheme.attacks[event.code])
+        if (event.code === scheme.left) setMove(scheme, 'left', true)
+        else if (event.code === scheme.right) setMove(scheme, 'right', true)
+        else if (event.code === scheme.jump) doJump(scheme)
+        else if (event.code in scheme.attacks) doAttack(scheme, scheme.attacks[event.code])
     }
 })
 
 window.addEventListener("keyup", event => {
     for (const scheme of controlSchemes) {
-        if (event.code === scheme.left) scheme.keys.a.pressed = false
-        else if (event.code === scheme.right) scheme.keys.d.pressed = false
+        if (event.code === scheme.left) setMove(scheme, 'left', false)
+        else if (event.code === scheme.right) setMove(scheme, 'right', false)
     }
 })
 
