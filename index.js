@@ -148,28 +148,34 @@ const camera = {
     },
 }
 
+//Timing state for the game loop. Lives outside animate() so it survives between frames
+let lastTimestamp = null //Timestamp (ms) of the previous frame; null until the first frame
+const MAX_DT = 0.05 //Longest time step allowed, in seconds (= 20 frames per second)
+const MOVE_SPEED = 120 //Horizontal speed in pixels per second
+
 /**
  * Updates the player's animation and position based on the given keys
  * @param {Player} player - The player to update
  * @param {Object} keys - An object containing the pressed state of the left and right arrow keys
+ * @param {Number} dt - Seconds elapsed since the previous frame
  */
-function runPlayerAnimation(player, keys) {
-    player.checkForHorizontalCanvasCollisions()
-    player.update();
+function runPlayerAnimation(player, keys, dt) {
+    player.checkForHorizontalCanvasCollisions(dt)
+    player.update(dt);
     player.velocity.x = 0
 
     if (keys.d.pressed) {
-        player.velocity.x = 2 //Move the player 2 pixels to the right
+        player.velocity.x = MOVE_SPEED //Move the player right (pixels per second)
         player.facingLeft = false //Set the player's facing direction
         player.switchSprite('run') //Switch to the run animation
 
-        player.panCameraToLeft(canvas, camera) //Pan the camera to the left if the player is exceeding the right boundary
+        player.panCameraToLeft(canvas, camera, dt) //Pan the camera to the left if the player is exceeding the right boundary
     }
     else if (keys.a.pressed) {
-        player.velocity.x = -2 //Move the player 2 pixels to the left
+        player.velocity.x = -MOVE_SPEED //Move the player left (pixels per second)
         player.facingLeft = true //Set the player's facing direction
         player.switchSprite('runLeft') //Switch to the runLeft animation
-        player.panCameraToRight(camera) //Pan the camera to the right if the player is exceeding the left boundary
+        player.panCameraToRight(camera, dt) //Pan the camera to the right if the player is exceeding the left boundary
     }
     else if (player.velocity.y === 0 && !player.isAttacking) {
         if(player.facingLeft) player.switchSprite('idleLeft') //Switch to the idleLeft animation
@@ -198,16 +204,23 @@ function runPlayerAnimation(player, keys) {
  * the background and player animations, and applying camera transformations.
  * Utilizes requestAnimationFrame for smooth rendering.
  */
-function animate() {
+function animate(timestamp) {
     window.requestAnimationFrame(animate)
+
+    // Seconds since the previous frame. On the very first frame there is no previous
+    // timestamp, so dt is 0 (nothing moves yet) instead of NaN.
+    // Capped so a hidden tab or a lag spike can't make characters teleport through walls.
+    const dt = lastTimestamp === null ? 0 : Math.min((timestamp - lastTimestamp) / 1000, MAX_DT)
+    lastTimestamp = timestamp
+
     c.fillStyle = 'white';
     c.fillRect(0, 0, canvas.width, canvas.height);
     c.save()
     c.scale(4, 4)
     c.translate(camera.position.x, camera.position.y)
     background.update()
-    runPlayerAnimation(player1, player1Keys)
-    runPlayerAnimation(player2, player2Keys)
+    runPlayerAnimation(player1, player1Keys, dt)
+    runPlayerAnimation(player2, player2Keys, dt)
     c.restore()
 }
-animate()
+window.requestAnimationFrame(animate)

@@ -45,17 +45,17 @@ class Player extends Sprite {
         }
     }
 
-    panCameraToLeft(canvas, camera){
+    panCameraToLeft(canvas, camera, dt){
         const cameraboxRightSide = this.cameraBox.position.x + this.cameraBox.width
         if(cameraboxRightSide >= 576) return
         if(cameraboxRightSide >= (canvas.width / 4) + Math.abs(camera.position.x)){
-            camera.position.x -= this.velocity.x
+            camera.position.x -= this.velocity.x * dt
         }
     }
-    panCameraToRight(camera){
+    panCameraToRight(camera, dt){
         if(this.cameraBox.position.x <= 0) return
         if(this.cameraBox.position.x <= Math.abs(camera.position.x)){
-            camera.position.x -= this.velocity.x
+            camera.position.x -= this.velocity.x * dt
         }
     }
 
@@ -72,8 +72,10 @@ class Player extends Sprite {
             camera.position.y -= this.velocity.y
     }
 
-    checkForHorizontalCanvasCollisions() {
-        if(this.hitbox.position.x + this.hitbox.width + this.velocity.x >= 576 || this.hitbox.position.x + this.velocity.x <= 0)
+    checkForHorizontalCanvasCollisions(dt) {
+        // Look ahead by the distance we are about to travel this frame (speed * time)
+        const step = this.velocity.x * dt
+        if(this.hitbox.position.x + this.hitbox.width + step >= 576 || this.hitbox.position.x + step <= 0)
             this.velocity.x = 0
     }
     switchSprite(key) {
@@ -83,12 +85,12 @@ class Player extends Sprite {
         this.frameBuffer = this.animations[key].frameBuffer
         this.frames = this.animations[key].frames
     }
-    update() {
+    update(dt) {
         this.updateFrames()
         this.updateHitbox()
         this.updateCameraBox()
         this.draw()
-        this.position.x += this.velocity.x;
+        this.position.x += this.velocity.x * dt;
         this.updateHitbox()
         this.checkForHorizontalCollisions()
         this.applyGravity()
