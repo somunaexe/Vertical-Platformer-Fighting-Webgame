@@ -36,7 +36,7 @@ function animate(timestamp) {
     stepGame(dt) //All the rules live in game.js
 
     updateEffects(dt)
-    updateHud(players[0], players[1])
+    updateHud(players)
     app.render() //One paint per game frame, after all state is updated
 }
 
