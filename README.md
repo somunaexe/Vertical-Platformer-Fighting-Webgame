@@ -36,6 +36,7 @@ A competitive **race to the top**. Every player climbs the same tall, vertical l
 - Injury system: weaker climbing, slow recovery, faster when resting
 - Tall level built from stacked copies of the collision data, with a zoom-to-fit camera
 - PixiJS (WebGL) rendering
+- Game feel: hit sparks, landing dust, screen shake, white hit flash and win confetti, all driven by game events (`js/bus.js`)
 
 ---
 
@@ -68,6 +69,9 @@ Vertical-Platformer-Fighting-Webgame/
 │   ├── level.js      # Tall level: stacks the map data, door position
 │   ├── camera.js     # Zoom-to-fit camera that frames every player
 │   ├── vendor/       # pixi.min.js (PixiJS 8.5.2) and its licence
+│   ├── bus.js        # GameEvents: the game announces jump/attack/hit/land/win
+│   ├── audio.js      # Sound effects, reacting to game events
+│   ├── effects.js    # Particles: sparks, dust, confetti
 │   ├── events.js     # Keyboard controls, jump/attack actions, music
 │   ├── utils.js      # Collision helpers
 │   ├── classes/      # Sprite, Player, CollisionBlock, AudioSFX
