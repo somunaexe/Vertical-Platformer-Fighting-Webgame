@@ -216,7 +216,7 @@ class Player extends Sprite {
     }
 
     /**
-     * Applies a hit: adds injury, plays sounds, interrupts any attack and stuns for a moment.
+     * Applies a hit: adds injury, interrupts any attack and stuns for a moment.
      * There is no death: injury only makes the player weaker.
      * @param {Number} injury - How much injury the hit adds
      * @param {Player} attacker - Who hit us (decides the knockback direction)
@@ -235,10 +235,6 @@ class Player extends Sprite {
         this.invulnerableTimer = INVULNERABLE_TIME
         this.velocity.y = -KNOCKBACK_POP //Launch upwards; gravity brings them back down, maybe onto a lower platform
         this.collidedVertically = false
-        for (const sound of [this.sounds.hit, this.sounds.grunt]) {
-            sound.currentTime = 0
-            sound.play()
-        }
     }
 
     /** Puts the player back at their spawn point fully recovered, ready for a new round. */

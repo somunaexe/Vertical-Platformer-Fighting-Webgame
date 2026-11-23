@@ -51,6 +51,18 @@ function checkDoorWin(players, door) {
 }
 
 /**
+ * The middle of the area where two rectangles overlap: where a sword actually met a body.
+ * @returns {{x: number, y: number}} World pixels
+ */
+function contactPoint(a, b) {
+    const left = Math.max(a.position.x, b.position.x)
+    const right = Math.min(a.position.x + a.width, b.position.x + b.width)
+    const top = Math.max(a.position.y, b.position.y)
+    const bottom = Math.min(a.position.y + a.height, b.position.y + b.height)
+    return {x: (left + right) / 2, y: (top + bottom) / 2}
+}
+
+/**
  * Checks both players' attacks for hits this frame and applies damage.
  * Both hits are worked out BEFORE either is applied, so two simultaneous hits trade
  * instead of the player processed first winning automatically.
@@ -72,7 +84,9 @@ function resolveCombat(p1, p2) {
 
     for (const [attacker, defender, injury] of landed) {
         attacker.attackHasHit = true //One hit per swing
+        const contact = contactPoint(attacker.attackHitbox(), defender.hitbox) //Measured before the hit changes anything
         defender.takeHit(injury, attacker)
+        GameEvents.emit('hit', {attacker, victim: defender, injury, direction: defender.knockbackDirection, ...contact})
     }
 }
 
