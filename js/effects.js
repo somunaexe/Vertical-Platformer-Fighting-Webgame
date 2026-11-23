@@ -115,3 +115,21 @@ function clearEffects() {
     }
     effects.active.length = 0
 }
+
+// ---- Hit sparks: a spray of yellow-white sparks where the sword meets the body ----
+GameEvents.on('hit', ({x, y, direction, injury}) => {
+    //Sparks fly the way the victim is pushed: direction is +1 (right) or -1 (left)
+    const forward = direction > 0 ? 0 : Math.PI
+    burst({
+        x, y,
+        count: 8 + Math.round(injury), //Harder hits throw more sparks
+        angle: forward,
+        spread: Math.PI * 0.8,
+        speedMin: 70, speedMax: 220,
+        life: 0.28, size: 2,
+        color: [0xffffff, 0xffe27a, 0xffb347],
+        gravity: 260, drag: 3,
+    })
+    //A brief, bigger flash right at the point of impact
+    burst({x, y, count: 3, angle: 0, spread: Math.PI * 2, speedMin: 0, speedMax: 12, life: 0.09, size: 6, color: 0xffffff})
+})
