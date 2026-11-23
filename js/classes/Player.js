@@ -281,6 +281,8 @@ class Player extends Sprite {
 
         this.hitTimer = HIT_STUN
         this.invulnerableTimer = INVULNERABLE_TIME
+        this.velocity.y = -KNOCKBACK_POP //Launch upwards; gravity brings them back down, maybe onto a lower platform
+        this.collidedVertically = false
         for (const sound of [this.sounds.hit, this.sounds.grunt]) {
             sound.currentTime = 0
             sound.play()

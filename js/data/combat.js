@@ -11,7 +11,9 @@ const RECOVERY_RATE = 2             //Injury points healed per second while movi
 const RESTING_RECOVERY_MULTIPLIER = 2.5 //Healing speed-up while standing still on the ground
 const HIT_STUN = 0.3            //Seconds a player is stunned (can't act) after being hit
 const INVULNERABLE_TIME = 0.5   //Seconds after a hit during which more hits are ignored
-const KNOCKBACK_SPEED = 90      //Initial horizontal push in pixels per second; fades out over the stun
+// Knockback is the main weapon in a race: with no death, sending someone off a ledge is how you win time.
+const KNOCKBACK_SPEED = 170     //Initial horizontal push in pixels per second; fades out over the stun
+const KNOCKBACK_POP = 120       //Upward kick in pixels per second, so a hit launches the victim off the platform
 
 /**
  * One entry per attack type.
