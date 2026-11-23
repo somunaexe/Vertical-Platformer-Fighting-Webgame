@@ -2,12 +2,9 @@
 // Game logic never draws directly; it updates plain state (positions, frames, injury)
 // and Pixi display objects are synced from that state once per frame.
 
-const SCALE = 4 //The pixel art is drawn at 4x
-
 const app = new PIXI.Application()   //Created here, initialised asynchronously by initRenderer()
-const world = new PIXI.Container()   //Everything in the level: moved by the camera and scaled by SCALE
+const world = new PIXI.Container()   //Everything in the level: the camera moves and scales it
 const hudLayer = new PIXI.Container() //Screen-space overlay (injury bars, banners): ignores the camera
-world.scale.set(SCALE)
 
 /**
  * Starts Pixi and loads every texture the game needs, so nothing pops in later.
@@ -18,7 +15,7 @@ async function initRenderer(textureUrls) {
         canvas: document.querySelector("canvas"),
         width: window.innerWidth,
         height: window.innerHeight,
-        backgroundColor: 0xffffff,
+        backgroundColor: 0x10202e, //Shows around the level when the camera zooms out past its edges
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,  //Canvas keeps its CSS size on high-DPI screens
         roundPixels: true,  //Snap sprites to whole screen pixels: no shimmering pixel art
