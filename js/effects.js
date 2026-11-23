@@ -133,3 +133,21 @@ GameEvents.on('hit', ({x, y, direction, injury}) => {
     //A brief, bigger flash right at the point of impact
     burst({x, y, count: 3, angle: 0, spread: Math.PI * 2, speedMin: 0, speedMax: 12, life: 0.09, size: 6, color: 0xffffff})
 })
+
+// ---- Landing dust: two small puffs sideways from the feet ----
+GameEvents.on('land', ({x, y, speed}) => {
+    //A harder landing (faster fall) kicks up more, faster dust
+    const strength = Math.min(1, speed / 360) //0..1; 360 px/s is a big fall
+    for (const side of [-1, 1]) {
+        burst({
+            x: x + side * 3, y: y - 1,
+            count: 3 + Math.round(strength * 5),
+            angle: side > 0 ? -0.25 : Math.PI + 0.25, //Mostly sideways, a little upwards
+            spread: 0.6,
+            speedMin: 20, speedMax: 40 + strength * 50,
+            life: 0.4, size: 3,
+            color: [0xd6c7a8, 0xb8a98b, 0x9a8d75],
+            gravity: -30, drag: 4, //Slightly negative gravity: dust drifts up instead of falling
+        })
+    }
+})
