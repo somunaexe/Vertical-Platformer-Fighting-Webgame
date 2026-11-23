@@ -51,6 +51,7 @@ platformCollisions2D.forEach((row, y) => {
 
 //Created in startGame() once Pixi and the textures are ready
 let background
+let door
 let player1
 let player2
 
@@ -231,6 +232,7 @@ function animate(timestamp) {
     runPlayerAnimation(player1, player1Keys, dt)
     runPlayerAnimation(player2, player2Keys, dt)
     resolveCombat(player1, player2)
+    checkDoorWin([player1, player2], door)
 
     updateHud(player1, player2)
     app.render() //One paint per game frame, after all state is updated
@@ -247,6 +249,8 @@ async function startGame() {
 
     background = new Sprite({imageSrc: backgroundSrc, position: {x: 0, y: 0}})
     background.draw() //Static: positioned once, never animated
+    //The door sits on the highest platform of the map (platform tiles x 12-14, y = 4 tiles = 64px)
+    door = new Door({position: {x: 12 * 16 + 12, y: 4 * 16 - 36}})
     player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
     player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
 

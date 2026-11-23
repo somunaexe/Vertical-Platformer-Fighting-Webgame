@@ -28,6 +28,19 @@ const match = {
 }
 
 /**
+ * Ends the round when a player reaches the door. If several arrive on the same frame it's a draw.
+ * @param {Player[]} players
+ * @param {Door} door
+ */
+function checkDoorWin(players, door) {
+    if (match.over) return
+    const arrived = players.filter(player => door.isReachedBy(player))
+    if (arrived.length === 0) return
+    match.over = true
+    match.winner = arrived.length === 1 ? arrived[0] : null
+}
+
+/**
  * Checks both players' attacks for hits this frame and applies damage.
  * Both hits are worked out BEFORE either is applied, so two simultaneous hits trade
  * instead of the player processed first winning automatically.
