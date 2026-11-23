@@ -92,6 +92,10 @@ function createWarriorAnimations() {
     for (const [name, file, frames, frameBuffer] of sheets) {
         animations[name] = {imageSrc: `assets/images/warrior/${file}`, frames, frameBuffer}
     }
+    //Only right-facing sheets exist for these, so they are mirrored when drawn facing left
+    for (const name of ['attackLow', 'attackMid', 'attackOverhead', 'hit', 'hitSilhouette', 'death']) {
+        animations[name].mirrorWhenLeft = true
+    }
     return animations
 }
 
@@ -117,13 +121,15 @@ function createWarriorSounds() {
 /**
  * Creates a warrior at the given spawn point.
  * @param {Object} options
+ * @param {String} options.name - Shown on the health bar
  * @param {Number} options.x - Spawn x position
  * @param {Number} options.y - Spawn y position
  * @param {Boolean} options.facingLeft - Which way the warrior starts facing
  * @returns {Player}
  */
-function createWarrior({x, y, facingLeft}) {
+function createWarrior({name, x, y, facingLeft}) {
     return new Player({
+        name,
         imageSrc: facingLeft ? "assets/images/warrior/IdleLeft.png" : "assets/images/warrior/Idle.png",
         position: {x, y},
         velocity: {x: 0, y: 0},
@@ -136,22 +142,31 @@ function createWarrior({x, y, facingLeft}) {
     })
 }
 
-const player1 = createWarrior({x: 100, y: 300, facingLeft: false})
-const player2 = createWarrior({x: 300, y: 300, facingLeft: true})
+const player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
+const player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
 
 const backgroundHeight = 432
 //Camera object for tracking the player
+const cameraStart = {x: 0, y: -backgroundHeight + scaledCanvas.height}
 const camera = {
-    position: {
-        x: 0,
-        y: -backgroundHeight + scaledCanvas.height,
-    },
+    position: {...cameraStart},
+}
+
+/** Starts a fresh round: full health, spawn positions, camera back at the start. */
+function resetMatch() {
+    match.over = false
+    match.winner = null
+    player1.reset()
+    player2.reset()
+    camera.position.x = cameraStart.x
+    camera.position.y = cameraStart.y
 }
 
 //Timing state for the game loop. Lives outside animate() so it survives between frames
 let lastTimestamp = null //Timestamp (ms) of the previous frame; null until the first frame
 const MAX_DT = 0.05 //Longest time step allowed, in seconds (= 20 frames per second)
 const MOVE_SPEED = 120 //Horizontal speed in pixels per second
+const noKeys = {a: {pressed: false}, d: {pressed: false}} //Stand-in input when controls are locked
 
 /**
  * Updates the player's animation and position based on the given keys
@@ -164,39 +179,48 @@ function runPlayerAnimation(player, keys, dt) {
     player.update(dt);
     player.velocity.x = 0
 
-    if (keys.d.pressed) {
+    //The camera follows vertical movement in every state (jumping, falling, even while stunned)
+    if (player.velocity.y < 0) player.panCameraToDown(camera, dt) //Pan the camera down if the player is exceeding the top boundary
+    else if (player.velocity.y > 0) player.panCameraToUp(camera, canvas, dt) //Pan the camera up if the player is exceeding the bottom boundary
+
+    //Dead: stay down on the last frame of the death animation
+    if (player.isDead) {
+        player.switchSprite('death')
+        return
+    }
+
+    //Stunned: no control, just the hit animation while being pushed back
+    if (player.hitTimer > 0) {
+        player.velocity.x = player.knockbackSpeed
+        player.switchSprite('hit')
+        return
+    }
+
+    //Once the round is over nobody can steer
+    const input = match.over ? noKeys : keys
+
+    //Mid-attack the player is committed: no walking and no animation changes until the swing ends
+    if (player.isAttacking) return
+
+    if (input.d.pressed) {
         player.velocity.x = MOVE_SPEED //Move the player right (pixels per second)
         player.facingLeft = false //Set the player's facing direction
         player.switchSprite('run') //Switch to the run animation
-
         player.panCameraToLeft(canvas, camera, dt) //Pan the camera to the left if the player is exceeding the right boundary
     }
-    else if (keys.a.pressed) {
+    else if (input.a.pressed) {
         player.velocity.x = -MOVE_SPEED //Move the player left (pixels per second)
         player.facingLeft = true //Set the player's facing direction
         player.switchSprite('runLeft') //Switch to the runLeft animation
         player.panCameraToRight(camera, dt) //Pan the camera to the right if the player is exceeding the left boundary
     }
-    else if (player.velocity.y === 0 && !player.isAttacking) {
-        if(player.facingLeft) player.switchSprite('idleLeft') //Switch to the idleLeft animation
-        else player.switchSprite('idle') //Switch to the idle animation
+    else if (player.velocity.y === 0) {
+        player.switchSprite(player.facingLeft ? 'idleLeft' : 'idle')
     }
 
-    //If player is jumping
-    if (player.velocity.y < 0) {
-        player.panCameraToDown(camera, dt) //Pan the camera to the down if the player is exceeding the top boundary
-
-        //Switch to the jump animation depending on the player's facing direction
-        if(player.facingLeft) player.switchSprite('jumpLeft')
-        else player.switchSprite('jump')
-    }
-    else if (player.velocity.y > 0) {
-        player.panCameraToUp(camera, canvas, dt) //Pan the camera to the up if the player is exceeding the bottom boundary
-
-        //Switch to the fall animation depending on the player's facing direction
-        if(player.facingLeft) player.switchSprite('fallLeft')
-        else player.switchSprite('fall')
-    }
+    //Airborne animations, depending on the player's facing direction
+    if (player.velocity.y < 0) player.switchSprite(player.facingLeft ? 'jumpLeft' : 'jump')
+    else if (player.velocity.y > 0) player.switchSprite(player.facingLeft ? 'fallLeft' : 'fall')
 }
 
 /**
@@ -221,6 +245,9 @@ function animate(timestamp) {
     background.update(dt)
     runPlayerAnimation(player1, player1Keys, dt)
     runPlayerAnimation(player2, player2Keys, dt)
+    resolveCombat(player1, player2)
     c.restore()
+
+    drawHud(player1, player2)
 }
 window.requestAnimationFrame(animate)

@@ -48,7 +48,9 @@ The goal is to reach the top while surviving enemy encounters and mastering move
 | Jump (double jump) | W | Up arrow |
 | Low / Mid / Overhead attack | X / C / V | I / O / P |
 
-- **Goal:** Reach the top while defeating or avoiding enemies
+Press **Enter** after a KO for a rematch.
+
+- **Goal:** Knock out the other fighter before they knock you out
 
 ---
 

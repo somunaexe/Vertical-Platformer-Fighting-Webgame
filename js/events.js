@@ -11,13 +11,6 @@ const player2Keys = {
 
 const JUMP_SPEED = 240 //Initial upward speed of a jump, in pixels per second
 
-// Maps each attack type to the sound and animation it triggers
-const attackTypes = {
-    low:      { sound: 'lowAttack',      animation: 'attackLow' },
-    mid:      { sound: 'midAttack',      animation: 'attackMid' },
-    overhead: { sound: 'overheadAttack', animation: 'attackOverhead' },
-}
-
 // One entry per player: which key does what.
 // `player` is a function because player1/player2 are created later, in index.js
 const controlSchemes = [
@@ -44,7 +37,7 @@ const controlSchemes = [
  * @param {Player} player - The player that should jump
  */
 function jump(player) {
-    if (player.jumps <= 0) return
+    if (player.jumps <= 0 || !player.canAct()) return
     player.collidedVertically = false
     player.jumps--
     player.velocity.y = -JUMP_SPEED
@@ -55,21 +48,28 @@ function jump(player) {
 }
 
 /**
- * Starts an attack unless the player is already mid-attack.
+ * Starts an attack unless the player is already mid-attack (or can't act).
  * Plays the matching sound and animation; Sprite.updateFrames resets isAttacking when the animation ends.
+ * Whether the sword actually hurts anyone is decided each frame by resolveCombat.
  * @param {Player} player - The attacking player
- * @param {String} type - A key of attackTypes: 'low', 'mid' or 'overhead'
+ * @param {String} type - A key of ATTACKS: 'low', 'mid' or 'overhead'
  */
 function attack(player, type) {
-    if (player.isAttacking) return
-    const {sound, animation} = attackTypes[type]
+    if (player.isAttacking || !player.canAct()) return
+    const {sound, animation} = ATTACKS[type]
     player.isAttacking = true
+    player.currentAttack = type
+    player.attackHasHit = false
     player.sounds[sound].currentTime = 0
     player.sounds[sound].play()
     player.switchSprite(animation)
+    player.currentFrame = 0 //Start the swing from its first frame, even if the sheet was already showing
+    player.elapsedTime = 0
 }
 
 window.addEventListener("keydown", event => {
+    if (event.code === "Enter" && match.over) resetMatch()
+
     for (const scheme of controlSchemes) {
         if (event.code === scheme.left) scheme.keys.a.pressed = true
         else if (event.code === scheme.right) scheme.keys.d.pressed = true

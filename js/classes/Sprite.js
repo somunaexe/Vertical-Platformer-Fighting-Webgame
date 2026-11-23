@@ -4,6 +4,9 @@ class Sprite {
         this.scale = scale
         this.loaded = false
         this.isAttacking = false
+        this.flipX = false //Draw mirrored (for sheets that only exist facing right)
+        this.flipShift = 0 //Horizontal nudge so a mirrored character stays where its body is
+        this.holdLastFrame = false //Stop on the final frame instead of looping (death animation)
         this.image = new Image()
         this.image.onload = () => {    
             this.width = (this.image.width / this.frames) * scale
@@ -29,6 +32,12 @@ class Sprite {
             height: this.image.height,
         }
 
+        c.save()
+        if (this.flipX) {
+            //Mirror around the sprite's own centre line
+            c.translate(2 * this.position.x + this.width + this.flipShift, 0)
+            c.scale(-1, 1)
+        }
         c.drawImage(
             this.image,
             cropbox.position.x,
@@ -40,6 +49,7 @@ class Sprite {
             this.width,
             this.height
         );
+        c.restore()
     }
 
     update(dt){
@@ -61,7 +71,7 @@ class Sprite {
             if (this.currentFrame < this.frames - 1) {
                 this.currentFrame++
             }
-            else {
+            else if (!this.holdLastFrame) {
                 this.currentFrame = 0
                 if(this.isAttacking) this.isAttacking = false
             }
