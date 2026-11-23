@@ -32,6 +32,9 @@ function animate(timestamp) {
     const dt = lastTimestamp === null ? 0 : Math.min((timestamp - lastTimestamp) / 1000, MAX_DT)
     lastTimestamp = timestamp
 
+    //Online: show the server's game (a moment ago, blended) BEFORE framing, so the camera sees the puppets where they're drawn
+    if (net.active) renderNetworkState(timestamp)
+
     //Frame everyone. Done before the players move so the sprites and the camera agree this frame
     //Normally frame everyone; once the race is won, glide in on the winner (nobody is racing any more)
     const cameraFocus = match.over && match.winner ? [match.winner] : activePlayers()

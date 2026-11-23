@@ -59,6 +59,32 @@ function applyPlayerSnapshot(player, s) {
     player.draw()                //Puppets never run update(), which is what normally copies their state onto the sprite
 }
 
+// Between two snapshots a player never moves more than a few pixels. A bigger jump (a rematch sending
+// everyone back to their spawn) is a teleport, and sliding across the level would look wrong.
+const NET_LERP_MAX_JUMP = 60
+
+/**
+ * Blends two snapshots: positions slide from a to b, everything else (animation, frame, flags, who won)
+ * stays as it was in a until b's moment arrives.
+ * @param {Object} a - The earlier snapshot
+ * @param {Object} b - The later snapshot
+ * @param {Number} t - 0 = exactly a, 1 = exactly b
+ * @returns {Object} A snapshot in between
+ */
+function interpolateSnapshots(a, b, t) {
+    return {
+        p: a.p.map((from, slot) => {
+            const to = b.p[slot]
+            const sameSpot = to && Math.abs(to.x - from.x) < NET_LERP_MAX_JUMP && Math.abs(to.y - from.y) < NET_LERP_MAX_JUMP
+            return sameSpot
+                ? {...from, x: roundTo(from.x + (to.x - from.x) * t, 2), y: roundTo(from.y + (to.y - from.y) * t, 2)}
+                : from
+        }),
+        over: a.over,
+        win: a.win,
+    }
+}
+
 /**
  * Applies a whole snapshot to the current players and match.
  * @param {Object} snapshot - What snapshotGame() produced

@@ -157,3 +157,19 @@ test('rooms are isolated from each other', () => {
     assert.ok(a.snapshot().p[0].x > 200)
     assert.strictEqual(b.snapshot().p[0].x, 100, 'the other room must not have moved')
 })
+
+test('interpolateSnapshots slides positions, keeps the rest, and never slides across a teleport', () => {
+    const sim = createSim(2)
+    const player = (x, y, extra = {}) => ({x, y, anim: 'run', frame: 1, left: 0, inj: 0, inv: 0, flash: 0, gone: 0, ...extra})
+    const a = {p: [player(100, 300), player(200, 300, {anim: 'idle'})], over: false, win: -1}
+    const b = {p: [player(104, 296, {anim: 'jump', frame: 0}), player(500, 300)], over: true, win: 0}
+    const mix = t => JSON.parse(sim.run(`JSON.stringify(interpolateSnapshots(${JSON.stringify(a)}, ${JSON.stringify(b)}, ${t}))`))
+
+    assert.deepStrictEqual([mix(0).p[0].x, mix(0).p[0].y], [100, 300])
+    assert.deepStrictEqual([mix(0.5).p[0].x, mix(0.5).p[0].y], [102, 298])
+    assert.deepStrictEqual([mix(1).p[0].x, mix(1).p[0].y], [104, 296])
+    assert.strictEqual(mix(0.5).p[0].anim, 'run', 'animation stays as in the earlier snapshot')
+    assert.strictEqual(mix(0.5).p[0].frame, 1)
+    assert.strictEqual(mix(0.5).over, false, 'the result flag changes when its moment arrives, not before')
+    assert.strictEqual(mix(0.5).p[1].x, 200, 'a 300px jump is a teleport: no sliding')
+})

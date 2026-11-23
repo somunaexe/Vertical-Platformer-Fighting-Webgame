@@ -3,8 +3,17 @@
 // (snapshots of the game and a list of events) into the same GameEvents that the sparks, sounds and
 // screen shake already listen to, so online play looks and sounds like local play.
 
+// Snapshots arrive 30 times a second, but the screen redraws 60+ times a second and the network adds jitter.
+// So the browser shows the game NET_INTERPOLATION_DELAY ms in the past and blends between the two snapshots
+// around that moment: always smooth, at the price of that much extra delay on what you see.
+const NET_TICK_MS = 1000 / 60
+const NET_INTERPOLATION_DELAY = 70 //About two snapshot intervals (33ms each)
+
 const net = {
     socket: null,
+    buffer: [],        //Recent snapshots {n, time, s, ev}; time is the server's own timeline (tick * 16.7ms)
+    clockOffset: Infinity, //How far this browser's clock is ahead of the server's timeline; learned from the fastest arrivals
+    firedTick: -1,     //The newest snapshot whose events have already been replayed
     active: false,  //True while an online round is on screen: input goes to the server instead of the local game
     slot: null,     //Which player I am in the current round
     lobby: null,    //The last lobby message while waiting for a round
@@ -62,6 +71,7 @@ function leaveOnline() {
     net.active = false
     net.slot = null
     net.lobby = null
+    resetNetBuffer()
     localSlot = null
     if (socket && socket.readyState <= WebSocket.OPEN) socket.close()
     teardownRound()
@@ -78,14 +88,13 @@ function handleServerMessage(message) {
             net.slot = message.slot
             localSlot = message.slot //The HUD shows my bar and labels me "YOU"
             teardownRound()          //Clears any round left over from before
+            resetNetBuffer()
             beginRound(message.count)
             net.active = true
             net.handlers.start?.(message)
             break
         case 'snap':
-            if (!net.active) break
-            applyGameSnapshot(message.s)
-            replayServerEvents(message.ev)
+            if (net.active) bufferSnapshot(message, performance.now())
             break
         case 'left':
             players[message.slot]?.depart()
@@ -98,6 +107,54 @@ function handleServerMessage(message) {
         case 'error':
             net.handlers.error?.(message.reason)
             break
+    }
+}
+
+function resetNetBuffer() {
+    net.buffer = []
+    net.clockOffset = Infinity
+    net.firedTick = -1
+}
+
+/**
+ * Stores a snapshot for later display. The server's tick number gives its place on the server's timeline;
+ * comparing with when it arrived tells how far our clock is from the server's. Taking the SMALLEST gap
+ * (a fast arrival is closest to the true delay) means a late packet doesn't shift the timeline.
+ * @param {Object} message - A 'snap' message
+ * @param {Number} receivedAt - performance.now() when it arrived
+ */
+function bufferSnapshot(message, receivedAt) {
+    const time = message.n * NET_TICK_MS
+    net.clockOffset = Math.min(net.clockOffset + 0.01, receivedAt - time) //+0.01 lets the estimate slowly follow clock drift
+    net.buffer.push({n: message.n, time, s: message.s, ev: message.ev})
+    if (net.buffer.length > 40) net.buffer.shift()
+}
+
+/**
+ * Shows the game as it was a moment ago, smoothly. Call once per frame while online.
+ * @param {Number} now - performance.now()
+ */
+function renderNetworkState(now) {
+    if (net.buffer.length) showServerTime(now - net.clockOffset - NET_INTERPOLATION_DELAY)
+}
+
+/**
+ * Applies the game as it was at a moment on the server's timeline: blended between the two snapshots around
+ * it, and replaying the events of every snapshot that moment has now reached.
+ * @param {Number} target - Server time in ms
+ */
+function showServerTime(target) {
+    const buffer = net.buffer
+    let i = buffer.length - 1
+    while (i > 0 && buffer[i].time > target) i-- //The last snapshot at or before the target
+    const before = buffer[i], after = buffer[i + 1]
+    const blend = after && target > before.time ? Math.min(1, (target - before.time) / (after.time - before.time)) : 0
+    applyGameSnapshot(blend > 0 ? interpolateSnapshots(before.s, after.s, blend) : before.s)
+    for (const entry of buffer) {
+        if (entry.time <= target && entry.n > net.firedTick) {
+            replayServerEvents(entry.ev)
+            net.firedTick = entry.n
+        }
     }
 }
 
