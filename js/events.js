@@ -1,125 +1,85 @@
+// Only left/right are held-key states; jumping and attacking are one-shot actions handled on keydown
 const player1Keys = {
     a: { pressed: false },
-    w: { pressed: false },
-    s: { pressed: false },
-    d: { pressed: false }
-  };
-  
-const player2Keys = {
-    a: { pressed: false },
-    w: { pressed: false },
-    s: { pressed: false },
     d: { pressed: false }
 };
-  
+
+const player2Keys = {
+    a: { pressed: false },
+    d: { pressed: false }
+};
+
+// Maps each attack type to the sound and animation it triggers
+const attackTypes = {
+    low:      { sound: 'lowAttack',      animation: 'attackLow' },
+    mid:      { sound: 'midAttack',      animation: 'attackMid' },
+    overhead: { sound: 'overheadAttack', animation: 'attackOverhead' },
+}
+
+// One entry per player: which key does what.
+// `player` is a function because player1/player2 are created later, in index.js
+const controlSchemes = [
+    {
+        player: () => player1,
+        keys: player1Keys,
+        left: "KeyA",
+        right: "KeyD",
+        jump: "KeyW",
+        attacks: { KeyX: 'low', KeyC: 'mid', KeyV: 'overhead' },
+    },
+    {
+        player: () => player2,
+        keys: player2Keys,
+        left: "ArrowLeft",
+        right: "ArrowRight",
+        jump: "ArrowUp",
+        attacks: { KeyI: 'low', KeyO: 'mid', KeyP: 'overhead' },
+    },
+]
+
+/**
+ * Makes a player jump if they have any jumps left (2 = double jump), and plays the jump sound once.
+ * @param {Player} player - The player that should jump
+ */
+function jump(player) {
+    if (player.jumps <= 0) return
+    player.collidedVertically = false
+    player.jumps--
+    player.velocity.y = -4
+
+    player.sounds.jump.currentTime = 0
+    player.sounds.jump.playbackRate = 2.0
+    player.sounds.jump.play()
+}
+
+/**
+ * Starts an attack unless the player is already mid-attack.
+ * Plays the matching sound and animation; Sprite.updateFrames resets isAttacking when the animation ends.
+ * @param {Player} player - The attacking player
+ * @param {String} type - A key of attackTypes: 'low', 'mid' or 'overhead'
+ */
+function attack(player, type) {
+    if (player.isAttacking) return
+    const {sound, animation} = attackTypes[type]
+    player.isAttacking = true
+    player.sounds[sound].currentTime = 0
+    player.sounds[sound].play()
+    player.switchSprite(animation)
+}
 
 window.addEventListener("keydown", event => {
-    console.log(event.code)
-    switch (event.code) {
-        //Player 1 movement cases
-        case "KeyA":
-            player1Keys.a.pressed = true;
-            break
-        case "KeyD":
-            player1Keys.d.pressed = true;
-            break
-        case "KeyW":
-            player1.jumps > 0 && (
-                player1.collidedVertically = false,
-                player1.jumps--,
-                player1.velocity.y = -4
-            )
-            break
-        //Player 1 attack cases
-        case "KeyX":
-            !player1.isAttacking && (
-                player1.isAttacking = true,
-                player1.sounds.lowAttack.currentTime = 0,
-                player1.sounds.lowAttack.play(),
-                player1.switchSprite('attackLow')
-            )
-            break
-        case "KeyC":
-            !player1.isAttacking && (
-                player1.isAttacking = true,
-                player1.sounds.midAttack.currentTime = 0,
-                player1.sounds.midAttack.play(),
-                player1.switchSprite('attackMid')
-            )
-            break
-        case "KeyV":
-        !player1.isAttacking && (
-            player1.isAttacking = true,
-            player1.sounds.overheadAttack.currentTime = 0,
-            player1.sounds.overheadAttack.play(),
-            player1.switchSprite('attackOverhead')
-            )
-            break
-
-        //Player 2 movement cases
-        case "ArrowLeft":
-            player2Keys.a.pressed = true;
-            break
-        case "ArrowRight":
-            player2Keys.d.pressed = true;
-            break
-        case "ArrowUp":
-            player2.jumps > 0 && (
-                player2.collidedVertically = false,
-                player2.jumps--,
-                player2.velocity.y = -4
-            )
-            break
-
-        //Player 2 attack cases
-        case "KeyI":
-            !player2.isAttacking &&(
-                player2.isAttacking = true,
-                player2.sounds.lowAttack.currentTime = 0,
-                player2.sounds.lowAttack.play(),
-                player2.switchSprite('attackLow')
-            )
-            break
-        case "KeyO":
-            !player2.isAttacking && (
-                player2.isAttacking = true,
-                player2.sounds.midAttack.currentTime = 0,
-                player2.sounds.midAttack.play(),
-                player2.switchSprite('attackMid')
-            )
-            break
-        case "KeyP":
-            !player2.isAttacking && (
-                player2.isAttacking = true,
-                player2.sounds.overheadAttack.currentTime = 0,
-                player2.sounds.overheadAttack.play(),
-                player2.switchSprite('attackOverhead')
-            )
-            break
+    for (const scheme of controlSchemes) {
+        if (event.code === scheme.left) scheme.keys.a.pressed = true
+        else if (event.code === scheme.right) scheme.keys.d.pressed = true
+        else if (event.code === scheme.jump) jump(scheme.player())
+        else if (event.code in scheme.attacks) attack(scheme.player(), scheme.attacks[event.code])
     }
 })
 
 window.addEventListener("keyup", event => {
-    switch (event.code) {
-        //Player 1 movement cases
-        case "KeyA":
-            player1Keys.a.pressed = false;
-            // if(player1.sounds.run.isPlaying) player1.sounds.run.stop()
-            break
-        case "KeyD":
-            player1Keys.d.pressed = false;
-            // if(player1.sounds.run.isPlaying) player1.sounds.run.stop()
-            break
-        
-        //Player 2 movement cases
-        case "ArrowLeft":
-            player2Keys.a.pressed = false;
-            // if(player2.sounds.run.isPlaying) player2.sounds.run.stop()
-            break
-        case "ArrowRight":
-            player2Keys.d.pressed = false;
-            // if(player2.sounds.run.isPlaying) player2.sounds.run.stop()
-            break
+    for (const scheme of controlSchemes) {
+        if (event.code === scheme.left) scheme.keys.a.pressed = false
+        else if (event.code === scheme.right) scheme.keys.d.pressed = false
     }
 })
 
@@ -129,16 +89,13 @@ window.addEventListener("resize", () => {
     canvas.height = window.innerHeight;
 })
 
-//Start playing the music on first interaction
+//Start playing the music on first interaction (browsers block autoplay until the user interacts)
 window.addEventListener("click", playMusic)
 window.addEventListener("keydown", playMusic)
 window.addEventListener("touchstart", playMusic)
 
 function playMusic() {
-    bgMusic.play().then(() => {
-        console.log("music played")
-    })
-    .catch(error => {
+    bgMusic.play().catch(error => {
         console.log("Error playing music", error) //Music couldn't be played
     })
 

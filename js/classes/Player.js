@@ -144,15 +144,14 @@ class Player extends Sprite {
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = block.position.y - offset - 0.01
-                    this.jumps = 2       
-                    // if(!this.sounds.fall.isPlaying) this.sounds.fall.play()             
+                    this.jumps = 2
                     break
                 }
                 if(this.velocity.y < 0) {
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = block.position.y + block.height - offset + 0.01
-                    this.jumps = 2                    
+                    this.jumps = 2
                     break
                 }
             }
@@ -168,8 +167,7 @@ class Player extends Sprite {
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = platformBlock.position.y - offset - 0.01
-                    this.jumps = 2         
-                    // if(!this.sounds.fall.isPlaying) this.sounds.fall.play()           
+                    this.jumps = 2
                     break
                 }
             }
