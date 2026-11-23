@@ -13,6 +13,7 @@ class Player extends Sprite {
         this.injury = 0 //0 = fresh; rises when hit (see MAX_INJURY)
         this.hitTimer = 0 //Seconds of hit-stun left
         this.invulnerableTimer = 0 //Seconds of invulnerability left
+        this.flashTimer = 0 //Seconds of white hit-flash left
         this.knockbackDirection = 0 //-1 pushed left, +1 pushed right
         this.currentAttack = null //Key of ATTACKS while attacking
         this.attackHasHit = false //Each swing can only land once
@@ -52,6 +53,7 @@ class Player extends Sprite {
     update(dt) {
         this.hitTimer = Math.max(0, this.hitTimer - dt)
         this.invulnerableTimer = Math.max(0, this.invulnerableTimer - dt)
+        this.flashTimer = Math.max(0, this.flashTimer - dt)
         this.recoverInjury(dt)
         this.updateFrames(dt)
         this.updateHitbox()
@@ -182,6 +184,7 @@ class Player extends Sprite {
             this.flipShift = 2 * (bodyCentre - this.width / 2)
         }
         this.view.alpha = this.invulnerableTimer > 0 ? 0.6 : 1
+        this.view.filters = this.flashTimer > 0 ? [whiteFlashFilter] : null //Solid white for a split second after a hit
         super.draw()
     }
 
@@ -249,6 +252,7 @@ class Player extends Sprite {
 
         this.hitTimer = HIT_STUN
         this.invulnerableTimer = INVULNERABLE_TIME
+        this.flashTimer = FLASH_TIME
         this.velocity.y = -KNOCKBACK_POP //Launch upwards; gravity brings them back down, maybe onto a lower platform
         this.collidedVertically = false
     }
@@ -264,6 +268,7 @@ class Player extends Sprite {
         this.injury = 0
         this.hitTimer = 0
         this.invulnerableTimer = 0
+        this.flashTimer = 0
         this.isAttacking = false
         this.currentAttack = null
         this.jumps = 2
