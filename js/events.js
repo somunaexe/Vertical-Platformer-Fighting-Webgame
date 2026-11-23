@@ -109,10 +109,15 @@ window.addEventListener("keyup", event => {
     }
 })
 
-//Resize the canvas to fit the window (the renderer doesn't exist until startGame has run)
-window.addEventListener("resize", () => {
+//Resize the canvas to fit the window (the renderer doesn't exist until startGame has run).
+//Rotating a phone fires "resize"; so does the mobile address bar showing/hiding (visualViewport).
+function fitCanvasToWindow() {
     if (app.renderer) app.renderer.resize(window.innerWidth, window.innerHeight)
-})
+}
+window.addEventListener("resize", fitCanvasToWindow)
+window.visualViewport?.addEventListener("resize", fitCanvasToWindow)
+//Block the long-press context menu on touch devices
+window.addEventListener("contextmenu", event => event.preventDefault())
 
 //Start playing the music on first interaction (browsers block autoplay until the user interacts)
 window.addEventListener("click", playMusic)
