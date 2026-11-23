@@ -6,6 +6,20 @@ const CAMERA_PADDING = 56 //Free space (world pixels) kept around the outermost 
 const MAX_ZOOM = 6        //Closest the camera gets, e.g. when everyone stands together
 const CAMERA_SMOOTHING = 5 //How quickly the camera catches up with its target (per second); higher = snappier
 
+// Screen shake uses the "trauma" model: events ADD trauma (0..1), the shake size is trauma SQUARED
+// (so small hits barely register but big ones kick hard), and trauma drains away over time.
+const SHAKE_MAX_OFFSET = 14 //Biggest shake in SCREEN pixels, at full trauma
+const SHAKE_DECAY = 2.2     //Trauma lost per second
+let shakeTrauma = 0
+
+/**
+ * Adds screen shake. Several hits in a row stack up (capped at 1).
+ * @param {Number} amount - 0..1; about 0.3 is a solid hit, 1 is the biggest possible
+ */
+function addShake(amount) {
+    shakeTrauma = Math.min(1, shakeTrauma + amount)
+}
+
 // The camera's state: where it looks (world pixels) and how magnified the world is
 const camera = {x: 0, y: 0, zoom: 4}
 
@@ -70,6 +84,7 @@ function updateCamera(players, screen, dt, snap = false) {
     camera.y += (target.y - camera.y) * catchUp
     // Zoom is multiplicative (2x -> 4x feels like 4x -> 8x), so ease it in log space
     camera.zoom = Math.exp(Math.log(camera.zoom) + (Math.log(target.zoom) - Math.log(camera.zoom)) * catchUp)
+    shakeTrauma = snap ? 0 : Math.max(0, shakeTrauma - SHAKE_DECAY * dt)
     applyCamera(screen)
 }
 
@@ -78,6 +93,15 @@ function updateCamera(players, screen, dt, snap = false) {
  * then shift it so the camera's centre lands in the middle of the screen.
  */
 function applyCamera(screen) {
+    //Shake nudges the whole picture by a random amount, which grows with the square of the trauma
+    const shake = shakeTrauma * shakeTrauma * SHAKE_MAX_OFFSET
     world.scale.set(camera.zoom)
-    world.position.set(screen.width / 2 - camera.x * camera.zoom, screen.height / 2 - camera.y * camera.zoom)
+    world.position.set(
+        screen.width / 2 - camera.x * camera.zoom + (Math.random() * 2 - 1) * shake,
+        screen.height / 2 - camera.y * camera.zoom + (Math.random() * 2 - 1) * shake,
+    )
 }
+
+// Hits shake the screen in proportion to how hard they were; big landings give a small thud
+GameEvents.on('hit', ({injury}) => addShake(0.2 + injury * 0.02))
+GameEvents.on('land', ({speed}) => { if (speed > 250) addShake(speed / 1800) })
