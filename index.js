@@ -6,11 +6,7 @@ const c = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-//Fill the canvas with a green color. Used only for debugging
-c.fillStyle = 'green';
-c.fillRect(0, 0, canvas.width, canvas.height);
-
-const gravity = 0.15; //The drag/acceleration due to gravity on the player
+const gravity = 540; //Downward acceleration in pixels per second squared (was 0.15 per frame at 60 fps)
 
 //Canvas is scaled to fill entire screen. Hence, it's actual width and height are stored in scaledCanvas for calculations
 const scaledCanvas = {
@@ -31,7 +27,7 @@ floorCollisions2D.forEach((row, y) => {
         if (symbol === 202) {
             collisionBlocks.push(new CollisionBlock({
                 position: {
-                    x: x * 16, 
+                    x: x * 16,
                     y: y * 16
                 }
             }))
@@ -52,7 +48,7 @@ platformCollisions2D.forEach((row, y) => {
         if (symbol === 202) {
             platformBlocks.push(new CollisionBlock({
                 position: {
-                    x: x * 16, 
+                    x: x * 16,
                     y: y * 16
                 },
                 height: 4,
@@ -68,324 +64,163 @@ const background = new Sprite({
 })
 
 //Add the background music
-const bgMusic = new AudioSFX({src: '/assets/audio/bg-music.mp3', volume: 0.5, autoplay: true, loop: true});
+const bgMusic = new AudioSFX({src: 'assets/audio/bg-music.mp3', volume: 0.5, autoplay: true, loop: true});
 
-//Instantiate a player into the scene
-const player1 = new Player({
-    imageSrc: "assets/images/warrior/Idle.png",
-    position: {x: 100, y: 300},
-    velocity:  {x: 0, y: 0},
-    collisionBlocks,
-    platformBlocks,
-    frames: 8,
-    facingLeft: false,
-    animations: {
-        idle: {
-            imageSrc: "assets/images/warrior/Idle.png",
-            frames: 8,
-            frameBuffer: 3,
-        },
-        run: {
-            imageSrc: "assets/images/warrior/Run.png",
-            frames: 8,
-            frameBuffer: 5
-        },
-        jump: {
-            imageSrc: "assets/images/warrior/Jump.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        fall: {
-            imageSrc: "assets/images/warrior/Fall.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        idleLeft: {
-            imageSrc: "assets/images/warrior/IdleLeft.png",
-            frames: 8,
-            frameBuffer: 3
-        },
-        runLeft: {
-            imageSrc: "assets/images/warrior/RunLeft.png",
-            frames: 8,
-            frameBuffer: 5
-        },
-        jumpLeft: {
-            imageSrc: "assets/images/warrior/JumpLeft.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        fallLeft: {
-            imageSrc: "assets/images/warrior/FallLeft.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        attackLow: {
-            imageSrc: "assets/images/warrior/AttackLow.png",
-            frames: 4,
-            frameBuffer: 6
-        },
-        attackMid: {
-            imageSrc: "assets/images/warrior/AttackMid.png",
-            frames: 4,
-            frameBuffer: 4
-        },
-        attackOverhead: {
-            imageSrc: "assets/images/warrior/AttackOverhead.png",
-            frames: 4,
-            frameBuffer: 5
-        },
-        // attackLowLeft: {
-        //     imageSrc: "assets/images/warrior/AttackLowLeft.png",
-        //     frames: 6,
-        //     frameBuffer: 5
-        // },
-        // attackMidLeft: {
-        //     imageSrc: "assets/images/warrior/AttackMidLeft.png",
-        //     frames: 6,
-        //     frameBuffer: 5
-        // },
-        // attackOverheadLeft: {
-        //     imageSrc: "assets/images/warrior/AttackOverheadLeft.png",
-        //     frames: 6,
-        //     frameBuffer: 5
-        // },
-        hit: {
-            imageSrc: "assets/images/warrior/Take Hit.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        hitSilhouette: {
-            imageSrc: "assets/images/warrior/HitSilhouette.png",
-            frames: 2,
-            frameBuffer: 5
-        } ,
-        // hitSilhouetteLeft: {
-        //     imageSrc: "assets/images/warrior/HitSilhouetteLeft.png",
-        //     frames: 2,
-        //     frameBuffer: 5
-        // },
-        // hitLeft: {
-        //     imageSrc: "assets/images/warrior/HitLeft.png",
-        //     frames: 2,
-        //     frameBuffer: 5
-        // },
-        death: {
-            imageSrc: "assets/images/warrior/Death.png",
-            frames: 6,
-            frameBuffer: 5
-        },
-        // deathLeft: {
-        //     imageSrc: "assets/images/warrior/DeathLeft.png",
-        //     frames: 6,
-        //     frameBuffer: 5
-        // }
-    },
-    sounds: {
-        death: new AudioSFX({src: '/assets/audio/death.mp3'}),
-        fall: new AudioSFX({src: '/assets/audio/fall.mp3'}),
-        grunt: new AudioSFX({src: '/assets/audio/grunt.mp3'}),
-        hit: new AudioSFX({src: '/assets/audio/hit.mp3'}),
-        jump: new AudioSFX({src: '/assets/audio/jump.mp3'}),
-        lowAttack: new AudioSFX({src: '/assets/audio/low-attack.mp3'}),
-        midAttack: new AudioSFX({src: '/assets/audio/mid-attack.mp3'}),
-        overheadAttack: new AudioSFX({src: '/assets/audio/overhead-attack.mp3'}),
-        run: new AudioSFX({src: '/assets/audio/run.mp3', loop: true}),
+/**
+ * Builds the animation table for a warrior. Returns a fresh object each call because
+ * the Player constructor attaches an Image to every entry, which players must not share.
+ * Each entry is [name, spritesheet file, number of frames, frameBuffer (game frames per animation frame)].
+ */
+function createWarriorAnimations() {
+    const sheets = [
+        ['idle',           'Idle.png',           8, 3],
+        ['run',            'Run.png',            8, 5],
+        ['jump',           'Jump.png',           2, 5],
+        ['fall',           'Fall.png',           2, 5],
+        ['idleLeft',       'IdleLeft.png',       8, 3],
+        ['runLeft',        'RunLeft.png',        8, 5],
+        ['jumpLeft',       'JumpLeft.png',       2, 5],
+        ['fallLeft',       'FallLeft.png',       2, 5],
+        ['attackLow',      'AttackLow.png',      4, 6],
+        ['attackMid',      'AttackMid.png',      4, 4],
+        ['attackOverhead', 'AttackOverhead.png', 4, 5],
+        ['hit',            'Take Hit.png',       2, 5],
+        ['hitSilhouette',  'HitSilhouette.png',  2, 5],
+        ['death',          'Death.png',          6, 5],
+    ]
+    const animations = {}
+    for (const [name, file, frames, frameBuffer] of sheets) {
+        animations[name] = {imageSrc: `assets/images/warrior/${file}`, frames, frameBuffer}
     }
-});
+    //Only right-facing sheets exist for these, so they are mirrored when drawn facing left
+    for (const name of ['attackLow', 'attackMid', 'attackOverhead', 'hit', 'hitSilhouette', 'death']) {
+        animations[name].mirrorWhenLeft = true
+    }
+    return animations
+}
 
-//Instantiate a second player into the scene
-const player2 = new Player({
-    imageSrc: "assets/images/warrior/IdleLeft.png",
-    position: {x: 300, y: 300},
-    velocity:  {x: 0, y: 0},
-    collisionBlocks,
-    platformBlocks,
-    frames: 8,
-    facingLeft: true,
-    animations: {
-        idle: {
-            imageSrc: "assets/images/warrior/Idle.png",
-            frames: 8,
-            frameBuffer: 3,
-        },
-        run: {
-            imageSrc: "assets/images/warrior/Run.png",
-            frames: 8,
-            frameBuffer: 5
-        },
-        jump: {
-            imageSrc: "assets/images/warrior/Jump.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        fall: {
-            imageSrc: "assets/images/warrior/Fall.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        idleLeft: {
-            imageSrc: "assets/images/warrior/IdleLeft.png",
-            frames: 8,
-            frameBuffer: 3
-        },
-        runLeft: {
-            imageSrc: "assets/images/warrior/RunLeft.png",
-            frames: 8,
-            frameBuffer: 5
-        },
-        jumpLeft: {
-            imageSrc: "assets/images/warrior/JumpLeft.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        fallLeft: {
-            imageSrc: "assets/images/warrior/FallLeft.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        attackLow: {
-            imageSrc: "assets/images/warrior/AttackLow.png",
-            frames: 4,
-            frameBuffer: 6
-        },
-        attackMid: {
-            imageSrc: "assets/images/warrior/AttackMid.png",
-            frames: 4,
-            frameBuffer: 4
-        },
-        attackOverhead: {
-            imageSrc: "assets/images/warrior/AttackOverhead.png",
-            frames: 4,
-            frameBuffer: 5
-        },
-        // attackLowLeft: {
-        //     imageSrc: "assets/images/warrior/AttackLowLeft.png",
-        //     frames: 6,
-        //     frameBuffer: 5
-        // },
-        // attackMidLeft: {
-        //     imageSrc: "assets/images/warrior/AttackMidLeft.png",
-        //     frames: 6,
-        //     frameBuffer: 5
-        // },
-        // attackOverheadLeft: {
-        //     imageSrc: "assets/images/warrior/AttackOverheadLeft.png",
-        //     frames: 6,
-        //     frameBuffer: 5
-        // },
-        hit: {
-            imageSrc: "assets/images/warrior/Take Hit.png",
-            frames: 2,
-            frameBuffer: 5
-        },
-        hitSilhouette: {
-            imageSrc: "assets/images/warrior/HitSilhouette.png",
-            frames: 2,
-            frameBuffer: 5
-        } ,
-        // hitSilhouetteLeft: {
-        //     imageSrc: "assets/images/warrior/HitSilhouetteLeft.png",
-        //     frames: 2,
-        //     frameBuffer: 5
-        // },
-        // hitLeft: {
-        //     imageSrc: "assets/images/warrior/HitLeft.png",
-        //     frames: 2,
-        //     frameBuffer: 5
-        // },
-        death: {
-            imageSrc: "assets/images/warrior/Death.png",
-            frames: 6,
-            frameBuffer: 5
-        },
-        // deathLeft: {
-        //     imageSrc: "assets/images/warrior/DeathLeft.png",
-        //     frames: 6,
-        //     frameBuffer: 5
-        // }
-    },
-    sounds: {
-        death: new AudioSFX({src: '/assets/audio/death.mp3'}),
-        fall: new AudioSFX({src: '/assets/audio/fall.mp3'}),
-        grunt: new AudioSFX({src: '/assets/audio/grunt.mp3'}),
-        hit: new AudioSFX({src: '/assets/audio/hit.mp3'}),
-        jump: new AudioSFX({src: '/assets/audio/jump.mp3'}),
-        lowAttack: new AudioSFX({src: '/assets/audio/low-attack.mp3'}),
-        midAttack: new AudioSFX({src: '/assets/audio/mid-attack.mp3'}),
-        overheadAttack: new AudioSFX({src: '/assets/audio/overhead-attack.mp3'}),
-        run: new AudioSFX({src: '/assets/audio/run.mp3', volume: 1.0, loop: true}),
+/**
+ * Builds the sound set for a warrior. Each player needs their own Audio objects,
+ * since playing a sound restarts it (shared objects would cut each other off).
+ */
+function createWarriorSounds() {
+    const sound = (file, options) => new AudioSFX({src: `assets/audio/${file}`, ...options})
+    return {
+        death: sound('death.mp3'),
+        fall: sound('fall.mp3'),
+        grunt: sound('grunt.mp3'),
+        hit: sound('hit.mp3'),
+        jump: sound('jump.mp3'),
+        lowAttack: sound('low-attack.mp3'),
+        midAttack: sound('mid-attack.mp3'),
+        overheadAttack: sound('overhead-attack.mp3'),
+        run: sound('run.mp3', {loop: true}),
     }
-});
+}
+
+/**
+ * Creates a warrior at the given spawn point.
+ * @param {Object} options
+ * @param {String} options.name - Shown on the health bar
+ * @param {Number} options.x - Spawn x position
+ * @param {Number} options.y - Spawn y position
+ * @param {Boolean} options.facingLeft - Which way the warrior starts facing
+ * @returns {Player}
+ */
+function createWarrior({name, x, y, facingLeft}) {
+    return new Player({
+        name,
+        imageSrc: facingLeft ? "assets/images/warrior/IdleLeft.png" : "assets/images/warrior/Idle.png",
+        position: {x, y},
+        velocity: {x: 0, y: 0},
+        collisionBlocks,
+        platformBlocks,
+        frames: 8,
+        facingLeft,
+        animations: createWarriorAnimations(),
+        sounds: createWarriorSounds(),
+    })
+}
+
+const player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
+const player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
 
 const backgroundHeight = 432
 //Camera object for tracking the player
+const cameraStart = {x: 0, y: -backgroundHeight + scaledCanvas.height}
 const camera = {
-    position: {
-        x: 0,
-        y: -backgroundHeight + scaledCanvas.height,
-    },
+    position: {...cameraStart},
 }
+
+/** Starts a fresh round: full health, spawn positions, camera back at the start. */
+function resetMatch() {
+    match.over = false
+    match.winner = null
+    player1.reset()
+    player2.reset()
+    camera.position.x = cameraStart.x
+    camera.position.y = cameraStart.y
+}
+
+//Timing state for the game loop. Lives outside animate() so it survives between frames
+let lastTimestamp = null //Timestamp (ms) of the previous frame; null until the first frame
+const MAX_DT = 0.05 //Longest time step allowed, in seconds (= 20 frames per second)
+const MOVE_SPEED = 120 //Horizontal speed in pixels per second
+const noKeys = {a: {pressed: false}, d: {pressed: false}} //Stand-in input when controls are locked
 
 /**
  * Updates the player's animation and position based on the given keys
  * @param {Player} player - The player to update
  * @param {Object} keys - An object containing the pressed state of the left and right arrow keys
+ * @param {Number} dt - Seconds elapsed since the previous frame
  */
-function runPlayerAnimation(player, keys) {
-    player.checkForHorizontalCanvasCollisions()
-    player.update();
-    // if (player.sounds.run.isPlaying && (!player.collidedVertically || (!keys.d.pressed && !keys.a.pressed))) {
-    //     player.sounds.run.pause();
-    // }
+function runPlayerAnimation(player, keys, dt) {
+    player.checkForHorizontalCanvasCollisions(dt)
+    player.update(dt);
     player.velocity.x = 0
 
-    if (keys.d.pressed) {
-        player.velocity.x = 2 //Move the player 2 pixels to the right
+    //The camera follows vertical movement in every state (jumping, falling, even while stunned)
+    if (player.velocity.y < 0) player.panCameraToDown(camera, dt) //Pan the camera down if the player is exceeding the top boundary
+    else if (player.velocity.y > 0) player.panCameraToUp(camera, canvas, dt) //Pan the camera up if the player is exceeding the bottom boundary
+
+    //Dead: stay down on the last frame of the death animation
+    if (player.isDead) {
+        player.switchSprite('death')
+        return
+    }
+
+    //Stunned: no control, just the hit animation while being pushed back
+    if (player.hitTimer > 0) {
+        player.velocity.x = player.knockbackSpeed
+        player.switchSprite('hit')
+        return
+    }
+
+    //Once the round is over nobody can steer
+    const input = match.over ? noKeys : keys
+
+    //Mid-attack the player is committed: no walking and no animation changes until the swing ends
+    if (player.isAttacking) return
+
+    if (input.d.pressed) {
+        player.velocity.x = MOVE_SPEED //Move the player right (pixels per second)
         player.facingLeft = false //Set the player's facing direction
         player.switchSprite('run') //Switch to the run animation
-        
-        //  if (player.collidedVertically) {
-        //     if (!player.sounds.run.isPlaying) {
-        //         player.sounds.run.currentTime = 0;
-        //         player.sounds.run.play();
-        //     }
-        // }
-        player.panCameraToLeft(canvas, camera) //Pan the camera to the left if the player is exceeding the right boundary
+        player.panCameraToLeft(canvas, camera, dt) //Pan the camera to the left if the player is exceeding the right boundary
     }
-    else if (keys.a.pressed) {
-        player.velocity.x = -2 //Move the player 2 pixels to the left
+    else if (input.a.pressed) {
+        player.velocity.x = -MOVE_SPEED //Move the player left (pixels per second)
         player.facingLeft = true //Set the player's facing direction
         player.switchSprite('runLeft') //Switch to the runLeft animation
-        // if(!player.sounds.run.isPlaying && player.collidedVertically) player.sounds.run.play()
-        player.panCameraToRight(camera) //Pan the camera to the right if the player is exceeding the left boundary
+        player.panCameraToRight(camera, dt) //Pan the camera to the right if the player is exceeding the left boundary
     }
-    else if (player.velocity.y === 0 && !player.isAttacking) {
-        if(player.facingLeft) player.switchSprite('idleLeft') //Switch to the idleLeft animation
-        else player.switchSprite('idle') //Switch to the idle animation
+    else if (player.velocity.y === 0) {
+        player.switchSprite(player.facingLeft ? 'idleLeft' : 'idle')
     }
 
-    //If player is jumping
-    if (player.velocity.y < 0) {
-        player.panCameraToDown(camera) //Pan the camera to the down if the player is exceeding the top boundary
-
-        //Play the jump sound
-        player.sounds.jump.currentTime = 0
-        player.sounds.jump.playbackRate = 2.0
-        player.sounds.jump.play()
-
-        //Switch to the jump animation depending on the player's facing direction
-        if(player.facingLeft) player.switchSprite('jumpLeft')
-        else player.switchSprite('jump')
-    } 
-    else if (player.velocity.y > 0) {
-        player.panCameraToUp(camera, canvas) //Pan the camera to the up if the player is exceeding the bottom boundary
-
-        //Switch to the fall animation depending on the player's facing direction
-        if(player.facingLeft) player.switchSprite('fallLeft')
-        else player.switchSprite('fall')
-        // if(player.sounds.jump.isPlaying) player.sounds.jump.stop()
-    }
+    //Airborne animations, depending on the player's facing direction
+    if (player.velocity.y < 0) player.switchSprite(player.facingLeft ? 'jumpLeft' : 'jump')
+    else if (player.velocity.y > 0) player.switchSprite(player.facingLeft ? 'fallLeft' : 'fall')
 }
 
 /**
@@ -393,16 +228,26 @@ function runPlayerAnimation(player, keys) {
  * the background and player animations, and applying camera transformations.
  * Utilizes requestAnimationFrame for smooth rendering.
  */
-function animate() {
+function animate(timestamp) {
     window.requestAnimationFrame(animate)
+
+    // Seconds since the previous frame. On the very first frame there is no previous
+    // timestamp, so dt is 0 (nothing moves yet) instead of NaN.
+    // Capped so a hidden tab or a lag spike can't make characters teleport through walls.
+    const dt = lastTimestamp === null ? 0 : Math.min((timestamp - lastTimestamp) / 1000, MAX_DT)
+    lastTimestamp = timestamp
+
     c.fillStyle = 'white';
     c.fillRect(0, 0, canvas.width, canvas.height);
     c.save()
     c.scale(4, 4)
     c.translate(camera.position.x, camera.position.y)
-    background.update()
-    runPlayerAnimation(player1, player1Keys)
-    runPlayerAnimation(player2, player2Keys)
+    background.update(dt)
+    runPlayerAnimation(player1, player1Keys, dt)
+    runPlayerAnimation(player2, player2Keys, dt)
+    resolveCombat(player1, player2)
     c.restore()
+
+    drawHud(player1, player2)
 }
-animate()
+window.requestAnimationFrame(animate)

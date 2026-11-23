@@ -40,12 +40,17 @@ The goal is to reach the top while surviving enemy encounters and mastering move
 
 ## 🧠 How to Play
 
-### Controls (example – adjust if needed):
+### Controls
 
-- **A / D** → Move left and right  
-- **W / Space** → Jump  
-- **Arrow Keys / Mouse** → Attack (if implemented)  
-- **Goal:** Reach the top while defeating or avoiding enemies
+| | Player 1 | Player 2 |
+|---|---|---|
+| Move | A / D | Left / Right arrows |
+| Jump (double jump) | W | Up arrow |
+| Low / Mid / Overhead attack | X / C / V | I / O / P |
+
+Press **Enter** after a KO for a rematch.
+
+- **Goal:** Knock out the other fighter before they knock you out
 
 ---
 
@@ -55,9 +60,14 @@ The goal is to reach the top while surviving enemy encounters and mastering move
 Vertical-Platformer-Fighting-Webgame/
 │
 ├── index.html        # Main game page
-├── style.css         # Game styling
-├── script.js         # Game logic
-├── assets/           # Images, sprites, sounds
+├── index.css         # Game styling
+├── index.js          # Level setup, player creation, game loop
+├── js/
+│   ├── events.js     # Keyboard controls, jump/attack actions, music
+│   ├── utils.js      # Collision helpers
+│   ├── classes/      # Sprite, Player, CollisionBlock, AudioSFX
+│   └── data/         # Tiled collision data
+├── assets/           # Images, sprites, audio, Tiled map
 └── README.md         # Documentation
 ```
 
