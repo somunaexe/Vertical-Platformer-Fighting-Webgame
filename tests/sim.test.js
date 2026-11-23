@@ -1,0 +1,159 @@
+// The game rules, run headless in Node exactly as a room on the server runs them.
+// Run with: npm test
+const test = require('node:test')
+const assert = require('node:assert')
+const {createSim} = require('../server/sim')
+
+const DT = 1 / 60 //The server's fixed time step
+
+/** Steps a sim forward by a number of seconds at the fixed time step. */
+function run(sim, seconds) {
+    for (let i = 0; i < Math.round(seconds / DT); i++) sim.step(DT)
+}
+
+test('players start apart and settle onto the ground', () => {
+    const sim = createSim(2)
+    run(sim, 2)
+    const [a, b] = sim.snapshot().p
+    assert.strictEqual(a.x, 100)
+    assert.strictEqual(b.x, 300)
+    assert.ok(a.y > 340 && a.y < 350, `expected standing on the ground, y = ${a.y}`)
+    assert.strictEqual(a.anim, 'idle')
+    assert.strictEqual(b.anim, 'idleLeft')
+})
+
+test('holding right walks about 120 pixels per second', () => {
+    const sim = createSim(2)
+    run(sim, 1)
+    const before = sim.snapshot().p[0].x
+    sim.input(0, {kind: 'move', dir: 'right', pressed: true})
+    run(sim, 1)
+    const walked = sim.snapshot().p[0].x - before
+    assert.ok(Math.abs(walked - 120) < 4, `walked ${walked}px in a second`)
+    sim.input(0, {kind: 'move', dir: 'right', pressed: false})
+    run(sim, 0.2)
+    const stopped = sim.snapshot().p[0].x
+    run(sim, 0.5)
+    assert.strictEqual(sim.snapshot().p[0].x, stopped, 'released key should stop the player')
+})
+
+test('a jump rises about 50 pixels, announces itself, and lands with a land event', () => {
+    const sim = createSim(2)
+    run(sim, 1)
+    sim.drainEvents()
+    const groundY = sim.snapshot().p[0].y
+    assert.ok(sim.input(0, {kind: 'jump'}))
+    let highest = groundY
+    for (let i = 0; i < 90; i++) { sim.step(DT); highest = Math.min(highest, sim.snapshot().p[0].y) }
+    assert.ok(groundY - highest > 45 && groundY - highest < 56, `rose ${groundY - highest}px`)
+    const kinds = sim.drainEvents().map(event => event.e)
+    assert.deepStrictEqual(kinds.filter(k => k === 'jump'), ['jump'])
+    assert.ok(kinds.includes('land'))
+})
+
+test('an attack that connects injures the victim and reports a hit event', () => {
+    const sim = createSim(2)
+    run(sim, 1)
+    sim.run('players[1].position.x = players[0].position.x + 25; players[1].facingLeft = true')
+    sim.drainEvents()
+    sim.input(0, {kind: 'attack', type: 'mid'})
+    run(sim, 0.5)
+    const events = sim.drainEvents()
+    const hit = events.find(event => event.e === 'hit')
+    assert.ok(hit, 'expected a hit event')
+    assert.strictEqual(hit.a, 0)
+    assert.strictEqual(hit.v, 1)
+    assert.strictEqual(hit.injury, 8)
+    assert.ok(sim.snapshot().p[1].inj > 5, 'victim should be injured')
+    assert.strictEqual(sim.snapshot().p[0].inj, 0, 'attacker should be unhurt')
+    assert.strictEqual(events.filter(event => event.e === 'hit').length, 1, 'one swing lands once')
+})
+
+test('a same-frame trade hurts both players and does not crash', () => {
+    const sim = createSim(2)
+    run(sim, 1)
+    sim.run('players[1].position.x = players[0].position.x + 25; players[1].facingLeft = true')
+    sim.input(0, {kind: 'attack', type: 'mid'})
+    sim.input(1, {kind: 'attack', type: 'mid'})
+    run(sim, 0.5)
+    const [a, b] = sim.snapshot().p
+    assert.ok(a.inj > 0 && b.inj > 0, `injuries: ${a.inj}, ${b.inj}`)
+})
+
+test('reaching the door wins the round, once, and a rematch resets it', () => {
+    const sim = createSim(2)
+    run(sim, 1)
+    sim.drainEvents()
+    sim.run('players[1].position.x = door.position.x - 31; players[1].position.y = door.position.y - 22; players[1].velocity.y = 0')
+    run(sim, 0.3)
+    const events = sim.drainEvents()
+    assert.deepStrictEqual(events.filter(e => e.e === 'win').map(e => e.w), [1])
+    assert.strictEqual(sim.snapshot().over, true)
+    assert.strictEqual(sim.snapshot().win, 1)
+    run(sim, 1)
+    assert.strictEqual(sim.drainEvents().filter(e => e.e === 'win').length, 0, 'win is announced once')
+
+    sim.rematch()
+    const snap = sim.snapshot()
+    assert.strictEqual(snap.over, false)
+    assert.strictEqual(snap.p[1].x, 300)
+    assert.ok(sim.drainEvents().some(e => e.e === 'reset'))
+})
+
+test('invalid input is rejected without effect', () => {
+    const sim = createSim(2)
+    assert.strictEqual(sim.input(0, {kind: 'attack', type: 'constructor'}), false)
+    assert.strictEqual(sim.input(0, {kind: 'attack', type: 'nope'}), false)
+    assert.strictEqual(sim.input(0, {kind: 'move', dir: 'up', pressed: true}), false)
+    assert.strictEqual(sim.input(0, {kind: 'bogus'}), false)
+    assert.strictEqual(sim.input(7, {kind: 'jump'}), false, 'no such slot')
+})
+
+test('a departed player is ignored by the rules and flagged in snapshots', () => {
+    const sim = createSim(3)
+    run(sim, 1)
+    sim.depart(1)
+    sim.run('players[0].position.x = 100; players[2].position.x = 105; players[1].position.x = 112')
+    sim.input(0, {kind: 'attack', type: 'overhead'})
+    run(sim, 0.6)
+    const snap = sim.snapshot()
+    assert.strictEqual(snap.p[1].gone, 1)
+    assert.strictEqual(snap.p[1].inj, 0, 'departed player cannot be hurt')
+    assert.strictEqual(sim.input(1, {kind: 'jump'}), false, 'departed player cannot act')
+})
+
+test('twelve players fit in a room and the snapshot stays small', () => {
+    const sim = createSim(12)
+    run(sim, 1)
+    const snap = sim.snapshot()
+    assert.strictEqual(snap.p.length, 12)
+    const bytes = JSON.stringify(snap).length
+    assert.ok(bytes < 1500, `snapshot is ${bytes} bytes`)
+})
+
+test('the same inputs always produce the same game (fixed time step is deterministic)', () => {
+    const play = () => {
+        const sim = createSim(2)
+        run(sim, 1)
+        sim.input(0, {kind: 'move', dir: 'right', pressed: true})
+        for (let i = 0; i < 300; i++) {
+            if (i === 20) sim.input(0, {kind: 'jump'})
+            if (i === 60) sim.input(1, {kind: 'attack', type: 'low'})
+            if (i === 100) sim.input(0, {kind: 'attack', type: 'overhead'})
+            sim.step(DT)
+        }
+        return JSON.stringify(sim.snapshot())
+    }
+    assert.strictEqual(play(), play())
+})
+
+test('rooms are isolated from each other', () => {
+    const a = createSim(2)
+    const b = createSim(2)
+    run(a, 1)
+    a.input(0, {kind: 'move', dir: 'right', pressed: true})
+    run(a, 1)
+    run(b, 2)
+    assert.ok(a.snapshot().p[0].x > 200)
+    assert.strictEqual(b.snapshot().p[0].x, 100, 'the other room must not have moved')
+})
