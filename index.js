@@ -113,7 +113,7 @@ function createWarriorSounds() {
 /**
  * Creates a warrior at the given spawn point.
  * @param {Object} options
- * @param {String} options.name - Shown on the health bar
+ * @param {String} options.name - Shown above the injury bar
  * @param {Number} options.x - Spawn x position
  * @param {Number} options.y - Spawn y position
  * @param {Boolean} options.facingLeft - Which way the warrior starts facing
@@ -141,7 +141,7 @@ const camera = {
     position: {...cameraStart},
 }
 
-/** Starts a fresh round: full health, spawn positions, camera back at the start. */
+/** Starts a fresh round: no injuries, spawn positions, camera back at the start. */
 function resetMatch() {
     match.over = false
     match.winner = null
@@ -171,12 +171,6 @@ function runPlayerAnimation(player, keys, dt) {
     //The camera follows vertical movement in every state (jumping, falling, even while stunned)
     if (player.velocity.y < 0) player.panCameraToDown(camera, dt) //Pan the camera down if the player is exceeding the top boundary
     else if (player.velocity.y > 0) player.panCameraToUp(camera, app.screen, dt) //Pan the camera up if the player is exceeding the bottom boundary
-
-    //Dead: stay down on the last frame of the death animation
-    if (player.isDead) {
-        player.switchSprite('death')
-        return
-    }
 
     //Stunned: no control, just the hit animation while being pushed back
     if (player.hitTimer > 0) {

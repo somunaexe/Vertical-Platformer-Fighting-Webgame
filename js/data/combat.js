@@ -1,6 +1,6 @@
 // ---- Combat tuning: every number that changes how fights feel lives here ----
 
-const MAX_HEALTH = 100
+const MAX_INJURY = 100          //Injury is capped here. Nobody dies: it only makes you weaker
 const HIT_STUN = 0.3            //Seconds a player is stunned (can't act) after being hit
 const INVULNERABLE_TIME = 0.5   //Seconds after a hit during which more hits are ignored
 const KNOCKBACK_SPEED = 90      //Initial horizontal push in pixels per second; fades out over the stun
@@ -8,7 +8,7 @@ const KNOCKBACK_SPEED = 90      //Initial horizontal push in pixels per second; 
 /**
  * One entry per attack type.
  * - sound / animation: keys into the player's sounds and animations
- * - damage: health removed on hit
+ * - injury: how much injury a hit adds to the victim
  * - activeFrames: indexes of the animation frames during which the sword can hurt.
  *   Frames before the first active one are "startup" (the wind-up the opponent can react to).
  * - reach: how far in front of the player the attack box extends (world pixels)
@@ -16,9 +16,9 @@ const KNOCKBACK_SPEED = 90      //Initial horizontal push in pixels per second; 
  *   attacker's body hitbox, and its height. Negative offsetY means above the head.
  */
 const ATTACKS = {
-    low:      { sound: 'lowAttack',      animation: 'attackLow',      damage: 10, activeFrames: [2], reach: 24, offsetY: 14,  height: 13 },
-    mid:      { sound: 'midAttack',      animation: 'attackMid',      damage: 8,  activeFrames: [1], reach: 24, offsetY: 6,   height: 14 },
-    overhead: { sound: 'overheadAttack', animation: 'attackOverhead', damage: 15, activeFrames: [3], reach: 20, offsetY: -12, height: 24 },
+    low:      { sound: 'lowAttack',      animation: 'attackLow',      injury: 10, activeFrames: [2], reach: 24, offsetY: 14,  height: 13 },
+    mid:      { sound: 'midAttack',      animation: 'attackMid',      injury: 8,  activeFrames: [1], reach: 24, offsetY: 6,   height: 14 },
+    overhead: { sound: 'overheadAttack', animation: 'attackOverhead', injury: 15, activeFrames: [3], reach: 20, offsetY: -12, height: 24 },
 }
 
 // State of the current round
@@ -53,22 +53,16 @@ function resolveCombat(p1, p2) {
     const landed = []
     for (const [attacker, defender] of [[p1, p2], [p2, p1]]) {
         if (attacker.isAttackActive()
-            && !defender.isDead
             && defender.invulnerableTimer <= 0
             && collision(attacker.attackHitbox(), defender.hitbox)) {
-            //Read the damage now: applying the other hit of a trade clears this attacker's currentAttack
-            landed.push([attacker, defender, ATTACKS[attacker.currentAttack].damage])
+            //Read the injury now: applying the other hit of a trade clears this attacker's currentAttack
+            landed.push([attacker, defender, ATTACKS[attacker.currentAttack].injury])
         }
     }
 
-    for (const [attacker, defender, damage] of landed) {
+    for (const [attacker, defender, injury] of landed) {
         attacker.attackHasHit = true //One hit per swing
-        defender.takeHit(damage, attacker)
-    }
-
-    if (p1.isDead || p2.isDead) {
-        match.over = true
-        match.winner = (p1.isDead && p2.isDead) ? null : (p1.isDead ? p2 : p1)
+        defender.takeHit(injury, attacker)
     }
 }
 
@@ -86,19 +80,24 @@ function createHud(p1, p2) {
         nameRight: text(16, 'bold'),
         title: text(48, 'bold'),
         subtitle: text(20, 'normal'),
+        captionLeft: text(12, 'normal'),
+        captionRight: text(12, 'normal'),
     }
     hud.nameLeft.text = p1.name
     hud.nameRight.text = p2.name
     hud.nameLeft.anchor.set(0, 1)
     hud.nameRight.anchor.set(1, 1)
+    hud.captionLeft.text = hud.captionRight.text = 'INJURY'
+    hud.captionLeft.anchor.set(0, 0)
+    hud.captionRight.anchor.set(1, 0)
     hud.title.anchor.set(0.5)
     hud.subtitle.anchor.set(0.5)
     hud.subtitle.text = 'Press Enter for a rematch'
-    hudLayer.addChild(hud.graphics, hud.nameLeft, hud.nameRight, hud.title, hud.subtitle)
+    hudLayer.addChild(hud.graphics, hud.nameLeft, hud.nameRight, hud.captionLeft, hud.captionRight, hud.title, hud.subtitle)
 }
 
 /**
- * Syncs the health bars and the end-of-round banner with the game state.
+ * Syncs the injury bars and the end-of-round banner with the game state.
  * Lives in screen space (hudLayer), so it ignores the camera. Call once per frame.
  */
 function updateHud(p1, p2) {
@@ -114,9 +113,9 @@ function updateHud(p1, p2) {
     const g = hud.graphics
     g.clear()
     const drawBar = (player, x, alignRight) => {
-        const ratio = player.health / MAX_HEALTH
+        const ratio = player.injury / MAX_INJURY //0 = fresh, 1 = badly injured
         const filled = barWidth * ratio
-        const colour = ratio > 0.5 ? 0x4caf50 : ratio > 0.25 ? 0xe0a020 : 0xd03030
+        const colour = ratio < 0.5 ? 0x4caf50 : ratio < 0.75 ? 0xe0a020 : 0xd03030
         g.rect(x, barTop, barWidth, barHeight).fill({color: 0x000000, alpha: 0.6})
         g.rect(alignRight ? x + barWidth - filled : x, barTop, filled, barHeight).fill(colour)
         g.rect(x, barTop, barWidth, barHeight).stroke({width: 2, color: 0xffffff})
@@ -125,6 +124,8 @@ function updateHud(p1, p2) {
     drawBar(p2, width - margin - barWidth, true)
     hud.nameLeft.position.set(margin, barTop - 4)
     hud.nameRight.position.set(width - margin, barTop - 4)
+    hud.captionLeft.position.set(margin, barTop + barHeight + 3)
+    hud.captionRight.position.set(width - margin, barTop + barHeight + 3)
 
     hud.title.visible = hud.subtitle.visible = match.over
     if (match.over) {
