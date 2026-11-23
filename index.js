@@ -186,13 +186,13 @@ function runPlayerAnimation(player, keys, dt) {
     if (player.isAttacking) return
 
     if (input.d.pressed) {
-        player.velocity.x = MOVE_SPEED //Move the player right (pixels per second)
+        player.velocity.x = MOVE_SPEED * player.speedMultiplier //Move the player right (pixels per second)
         player.facingLeft = false //Set the player's facing direction
         player.switchSprite('run') //Switch to the run animation
         player.panCameraToLeft(app.screen, camera, dt) //Pan the camera to the left if the player is exceeding the right boundary
     }
     else if (input.a.pressed) {
-        player.velocity.x = -MOVE_SPEED //Move the player left (pixels per second)
+        player.velocity.x = -MOVE_SPEED * player.speedMultiplier //Move the player left (pixels per second)
         player.facingLeft = true //Set the player's facing direction
         player.switchSprite('runLeft') //Switch to the runLeft animation
         player.panCameraToRight(camera, dt) //Pan the camera to the right if the player is exceeding the left boundary

@@ -1,6 +1,11 @@
 // ---- Combat tuning: every number that changes how fights feel lives here ----
 
 const MAX_INJURY = 100          //Injury is capped here. Nobody dies: it only makes you weaker
+// How much injury weakens a player. Each floor is the fraction of normal ability left at MAX_INJURY.
+const INJURY_SPEED_FLOOR = 0.5  //Walking at max injury: half speed
+// Jump HEIGHT grows with the square of take-off speed (h = v^2 / 2g), so 0.8 here means a jump
+// reaches 0.8^2 = 64% as high. A lower floor would leave injured players unable to reach the next platform.
+const INJURY_JUMP_FLOOR = 0.8
 const HIT_STUN = 0.3            //Seconds a player is stunned (can't act) after being hit
 const INVULNERABLE_TIME = 0.5   //Seconds after a hit during which more hits are ignored
 const KNOCKBACK_SPEED = 90      //Initial horizontal push in pixels per second; fades out over the stun

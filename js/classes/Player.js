@@ -204,6 +204,21 @@ class Player extends Sprite {
         super.draw()
     }
 
+    /** Injury as a fraction: 0 = fresh, 1 = maximum injury. */
+    get injuryRatio() {
+        return this.injury / MAX_INJURY
+    }
+
+    /** Multiplier on walking speed: 1 when fresh, INJURY_SPEED_FLOOR at maximum injury. */
+    get speedMultiplier() {
+        return 1 - (1 - INJURY_SPEED_FLOOR) * this.injuryRatio
+    }
+
+    /** Multiplier on jump take-off speed: 1 when fresh, INJURY_JUMP_FLOOR at maximum injury. */
+    get jumpMultiplier() {
+        return 1 - (1 - INJURY_JUMP_FLOOR) * this.injuryRatio
+    }
+
     /** True when the player is free to start a jump or attack. */
     canAct() {
         return this.hitTimer <= 0 && !match.over
