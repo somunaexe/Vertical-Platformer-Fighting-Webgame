@@ -1,7 +1,8 @@
 class Player extends Sprite {
-    constructor({name, imageSrc, position, velocity, collisionBlocks, platformBlocks, frames, collidedVertically=false, scale = 0.5, animations, facingLeft, sounds}) {
+    constructor({name, color = 0xffffff, imageSrc, position, velocity, collisionBlocks, platformBlocks, frames, collidedVertically=false, scale = 0.5, animations, facingLeft, sounds}) {
         super({imageSrc, position, frames, scale})
         this.name = name
+        this.color = color //Identifies the player on the HUD (name tint, progress dot)
         this.spawn = {x: position.x, y: position.y, facingLeft} //Where reset() puts the player back
         this.velocity = velocity;
         this.collisionBlocks = collisionBlocks

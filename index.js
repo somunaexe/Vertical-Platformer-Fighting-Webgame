@@ -69,14 +69,16 @@ function createWarriorSounds() {
  * Creates a warrior at the given spawn point.
  * @param {Object} options
  * @param {String} options.name - Shown above the injury bar
+ * @param {Number} options.color - Tint (0xRRGGBB) that identifies this player on the HUD
  * @param {Number} options.x - Spawn x position
  * @param {Number} options.y - Spawn y position
  * @param {Boolean} options.facingLeft - Which way the warrior starts facing
  * @returns {Player}
  */
-function createWarrior({name, x, y, facingLeft}) {
+function createWarrior({name, color, x, y, facingLeft}) {
     return new Player({
         name,
+        color,
         imageSrc: facingLeft ? "assets/images/warrior/IdleLeft.png" : "assets/images/warrior/Idle.png",
         position: {x, y},
         velocity: {x: 0, y: 0},
@@ -190,8 +192,8 @@ async function startGame() {
         backgrounds.push(background)
     }
     door = new Door({position: doorPosition(36)}) //On the highest platform of the top copy
-    player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
-    player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
+    player1 = createWarrior({name: 'PLAYER 1', color: 0x4aa3ff, x: 100, y: 300, facingLeft: false})
+    player2 = createWarrior({name: 'PLAYER 2', color: 0xff7a59, x: 300, y: 300, facingLeft: true})
     players = [player1, player2]
     updateCamera(players, app.screen, 0, true) //Start already framed, no glide from nowhere
 

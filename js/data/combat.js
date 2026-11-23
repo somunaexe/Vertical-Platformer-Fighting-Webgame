@@ -76,6 +76,17 @@ function resolveCombat(p1, p2) {
     }
 }
 
+/**
+ * How far up the level a player has climbed: 0 at the ground, 1 at the door's platform.
+ * @param {Player} player
+ */
+function raceProgress(player) {
+    const groundY = MAP_HEIGHT - 2 * TILE //Top of the solid floor (row 25 of the map)
+    const doorFeetY = door.position.y + door.height
+    const bodyBottom = player.hitbox.position.y + player.hitbox.height
+    return Math.min(1, Math.max(0, (groundY - bodyBottom) / (groundY - doorFeetY)))
+}
+
 // Pixi objects for the HUD, created on the first updateHud() call
 let hud = null
 
@@ -95,6 +106,8 @@ function createHud(p1, p2) {
     }
     hud.nameLeft.text = p1.name
     hud.nameRight.text = p2.name
+    hud.nameLeft.style.fill = p1.color
+    hud.nameRight.style.fill = p2.color
     hud.nameLeft.anchor.set(0, 1)
     hud.nameRight.anchor.set(1, 1)
     hud.captionLeft.text = hud.captionRight.text = 'INJURY'
@@ -136,6 +149,18 @@ function updateHud(p1, p2) {
     hud.nameRight.position.set(width - margin, barTop - 4)
     hud.captionLeft.position.set(margin, barTop + barHeight + 3)
     hud.captionRight.position.set(width - margin, barTop + barHeight + 3)
+
+    // Race progress: a vertical track with the door at the top and a coloured dot per player
+    const trackX = width - 24
+    const trackTop = barTop + barHeight + 40
+    const trackBottom = height - 30
+    g.roundRect(trackX - 2, trackTop, 4, trackBottom - trackTop, 2).fill({color: 0xffffff, alpha: 0.35})
+    g.roundRect(trackX - 7, trackTop - 14, 14, 14, 3).fill(0xf2c14e) //The door
+    ;[p1, p2].forEach((player, i) => {
+        const y = trackBottom - raceProgress(player) * (trackBottom - trackTop)
+        const x = trackX + (i === 0 ? -11 : 11) //Side by side so two players at the same height don't hide each other
+        g.circle(x, y, 7).fill(player.color).stroke({width: 2, color: 0xffffff})
+    })
 
     hud.title.visible = hud.subtitle.visible = match.over
     if (match.over) {
