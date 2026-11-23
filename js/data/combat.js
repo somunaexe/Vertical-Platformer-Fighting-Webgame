@@ -68,28 +68,31 @@ function contactPoint(a, b) {
 }
 
 /**
- * Checks both players' attacks for hits this frame and applies damage.
- * Both hits are worked out BEFORE either is applied, so two simultaneous hits trade
- * instead of the player processed first winning automatically.
- * @param {Player} p1
- * @param {Player} p2
+ * Checks every player's attack against every other player and applies the hits that land.
+ * All hits are worked out BEFORE any is applied, so simultaneous hits trade instead of whoever
+ * is processed first winning automatically. That also means everything a hit needs (its injury and
+ * contact point) is read up front: applying one hit clears the victim's own current attack.
+ * A single swing can hit several players standing in front of it.
+ * @param {Player[]} players
  */
-function resolveCombat(p1, p2) {
+function resolveCombat(players) {
     if (match.over) return
 
     const landed = []
-    for (const [attacker, defender] of [[p1, p2], [p2, p1]]) {
-        if (attacker.isAttackActive()
-            && defender.invulnerableTimer <= 0
-            && collision(attacker.attackHitbox(), defender.hitbox)) {
-            //Read the injury now: applying the other hit of a trade clears this attacker's currentAttack
-            landed.push([attacker, defender, ATTACKS[attacker.currentAttack].injury])
+    for (const attacker of players) {
+        if (!attacker.isAttackActive()) continue
+        const swordBox = attacker.attackHitbox()
+        const injury = ATTACKS[attacker.currentAttack].injury
+        for (const defender of players) {
+            if (defender === attacker || defender.invulnerableTimer > 0) continue
+            if (collision(swordBox, defender.hitbox)) {
+                landed.push({attacker, defender, injury, contact: contactPoint(swordBox, defender.hitbox)})
+            }
         }
     }
 
-    for (const [attacker, defender, injury] of landed) {
-        attacker.attackHasHit = true //One hit per swing
-        const contact = contactPoint(attacker.attackHitbox(), defender.hitbox) //Measured before the hit changes anything
+    for (const {attacker, defender, injury, contact} of landed) {
+        attacker.attackHasHit = true //One swing; it cannot land again
         defender.takeHit(injury, attacker)
         GameEvents.emit('hit', {attacker, victim: defender, injury, direction: defender.knockbackDirection, ...contact})
     }

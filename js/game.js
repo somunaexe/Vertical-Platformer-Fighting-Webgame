@@ -204,6 +204,6 @@ function runPlayerAnimation(player, keys, dt) {
  */
 function stepGame(dt) {
     players.forEach((player, slot) => runPlayerAnimation(player, playerKeys[slot], dt))
-    resolveCombat(players[0], players[1])
+    resolveCombat(players)
     checkDoorWin(players, door)
 }
