@@ -59,4 +59,7 @@ function createSim(playerCount) {
     }
 }
 
-module.exports = {createSim}
+// The most players a room can hold: read from the game rules themselves so the two can never disagree
+const MAX_PLAYERS = createSim(2).run('MAX_PLAYERS')
+
+module.exports = {createSim, MAX_PLAYERS}
