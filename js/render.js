@@ -29,6 +29,17 @@ async function initRenderer(textureUrls) {
     }
 }
 
+// A filter that turns a sprite solid white (keeps its shape/alpha, replaces its colours).
+// The 4x5 matrix maps (R, G, B, A, 1) -> new (R, G, B, A): the last column adds 1 to R, G and B
+// while the first three columns are zeroed, so every pixel becomes white. Shared by every flash.
+const whiteFlashFilter = new PIXI.ColorMatrixFilter()
+whiteFlashFilter.matrix = [
+    0, 0, 0, 0, 1,
+    0, 0, 0, 0, 1,
+    0, 0, 0, 0, 1,
+    0, 0, 0, 1, 0,
+]
+
 const frameCache = {}
 
 /**

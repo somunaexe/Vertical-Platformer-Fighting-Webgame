@@ -9,6 +9,8 @@ const INJURY_JUMP_FLOOR = 0.8
 // Injury heals on its own, slowly. Standing still heals faster, so resting costs time but pays off.
 const RECOVERY_RATE = 2             //Injury points healed per second while moving
 const RESTING_RECOVERY_MULTIPLIER = 2.5 //Healing speed-up while standing still on the ground
+const LAND_EVENT_MIN_SPEED = 110 //Slowest downward speed (px/s) that counts as a landing worth announcing (a ~11px fall)
+const FLASH_TIME = 0.1         //Seconds a player is drawn solid white after being hit
 const HIT_STUN = 0.3            //Seconds a player is stunned (can't act) after being hit
 const INVULNERABLE_TIME = 0.5   //Seconds after a hit during which more hits are ignored
 // Knockback is the main weapon in a race: with no death, sending someone off a ledge is how you win time.
@@ -48,6 +50,19 @@ function checkDoorWin(players, door) {
     if (arrived.length === 0) return
     match.over = true
     match.winner = arrived.length === 1 ? arrived[0] : null
+    GameEvents.emit('win', {winner: match.winner, x: door.position.x + door.width / 2, y: door.position.y + door.height / 2})
+}
+
+/**
+ * The middle of the area where two rectangles overlap: where a sword actually met a body.
+ * @returns {{x: number, y: number}} World pixels
+ */
+function contactPoint(a, b) {
+    const left = Math.max(a.position.x, b.position.x)
+    const right = Math.min(a.position.x + a.width, b.position.x + b.width)
+    const top = Math.max(a.position.y, b.position.y)
+    const bottom = Math.min(a.position.y + a.height, b.position.y + b.height)
+    return {x: (left + right) / 2, y: (top + bottom) / 2}
 }
 
 /**
@@ -72,7 +87,9 @@ function resolveCombat(p1, p2) {
 
     for (const [attacker, defender, injury] of landed) {
         attacker.attackHasHit = true //One hit per swing
+        const contact = contactPoint(attacker.attackHitbox(), defender.hitbox) //Measured before the hit changes anything
         defender.takeHit(injury, attacker)
+        GameEvents.emit('hit', {attacker, victim: defender, injury, direction: defender.knockbackDirection, ...contact})
     }
 }
 

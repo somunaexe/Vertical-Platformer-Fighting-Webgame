@@ -31,8 +31,8 @@ function createWarriorAnimations() {
         ['attackLow',      'AttackLow.png',      4, 6],
         ['attackMid',      'AttackMid.png',      4, 4],
         ['attackOverhead', 'AttackOverhead.png', 4, 5],
-        ['hit',            'Take Hit.png',       2, 5],
-        ['hitSilhouette',  'HitSilhouette.png',  2, 5],
+        ['hit',            'Take Hit.png',       4, 5],
+        ['hitSilhouette',  'HitSilhouette.png',  4, 5],
         ['death',          'Death.png',          6, 5],
     ]
     const animations = {}
@@ -97,6 +97,7 @@ function resetMatch() {
     match.winner = null
     player1.reset()
     player2.reset()
+    clearEffects()
     updateCamera(players, app.screen, 0, true) //Don't glide across the level back to the start
 }
 
@@ -164,13 +165,16 @@ function animate(timestamp) {
     lastTimestamp = timestamp
 
     //Frame everyone. Done before the players move so the sprites and the camera agree this frame
-    updateCamera(players, app.screen, dt)
+    //Normally frame everyone; once the race is won, glide in on the winner (nobody is racing any more)
+    const cameraFocus = match.over && match.winner ? [match.winner] : players
+    updateCamera(cameraFocus, app.screen, dt)
 
     runPlayerAnimation(player1, player1Keys, dt)
     runPlayerAnimation(player2, player2Keys, dt)
     resolveCombat(player1, player2)
     checkDoorWin([player1, player2], door)
 
+    updateEffects(dt)
     updateHud(player1, player2)
     app.render() //One paint per game frame, after all state is updated
 }
@@ -195,6 +199,7 @@ async function startGame() {
     player1 = createWarrior({name: 'PLAYER 1', color: 0x4aa3ff, x: 100, y: 300, facingLeft: false})
     player2 = createWarrior({name: 'PLAYER 2', color: 0xff7a59, x: 300, y: 300, facingLeft: true})
     players = [player1, player2]
+    initEffects() //After the players, so particles draw on top of them
     updateCamera(players, app.screen, 0, true) //Start already framed, no glide from nowhere
 
     window.requestAnimationFrame(animate)

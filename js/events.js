@@ -33,7 +33,7 @@ const controlSchemes = [
 ]
 
 /**
- * Makes a player jump if they have any jumps left (2 = double jump), and plays the jump sound once.
+ * Makes a player jump if they have any jumps left (2 = double jump), and announces it.
  * @param {Player} player - The player that should jump
  */
 function jump(player) {
@@ -41,27 +41,23 @@ function jump(player) {
     player.collidedVertically = false
     player.jumps--
     player.velocity.y = -JUMP_SPEED * player.jumpMultiplier //Injured players jump lower
-
-    player.sounds.jump.currentTime = 0
-    player.sounds.jump.playbackRate = 2.0
-    player.sounds.jump.play()
+    GameEvents.emit('jump', {player})
 }
 
 /**
  * Starts an attack unless the player is already mid-attack (or can't act).
- * Plays the matching sound and animation; Sprite.updateFrames resets isAttacking when the animation ends.
+ * Announces the attack and plays the matching animation; Sprite.updateFrames resets isAttacking when the animation ends.
  * Whether the sword actually hurts anyone is decided each frame by resolveCombat.
  * @param {Player} player - The attacking player
  * @param {String} type - A key of ATTACKS: 'low', 'mid' or 'overhead'
  */
 function attack(player, type) {
     if (player.isAttacking || !player.canAct()) return
-    const {sound, animation} = ATTACKS[type]
+    const {animation} = ATTACKS[type]
     player.isAttacking = true
     player.currentAttack = type
     player.attackHasHit = false
-    player.sounds[sound].currentTime = 0
-    player.sounds[sound].play()
+    GameEvents.emit('attack', {player, type})
     player.switchSprite(animation)
     player.currentFrame = 0 //Start the swing from its first frame, even if the sheet was already showing
     player.elapsedTime = 0
