@@ -22,6 +22,7 @@ const FILES = [
     'js/classes/Player.js',
     'js/game.js',
     'js/net-state.js',
+    'js/ai.js',
     'server/sim-api.js',
 ]
 
