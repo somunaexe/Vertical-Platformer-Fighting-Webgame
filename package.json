@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server/server.js",
     "test": "node --test tests/*.test.js",
-    "export-art": "node tools/export-art.js"
+    "export-art": "node tools/export-art.js",
+    "build:itch": "node tools/build-itch.js"
   },
   "engines": {
     "node": ">=18"

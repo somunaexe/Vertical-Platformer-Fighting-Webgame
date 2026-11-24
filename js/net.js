@@ -21,9 +21,9 @@ const net = {
     handlers: {},
 }
 
-/** @returns {String} The WebSocket address of the server that served this page */
+/** @returns {String} The WebSocket address of the game server (see js/config.js) */
 function netAddress() {
-    return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host
+    return gameServerAddress()
 }
 
 /**
