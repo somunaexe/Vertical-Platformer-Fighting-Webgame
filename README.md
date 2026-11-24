@@ -35,6 +35,7 @@ A competitive **race to the top**. Every player climbs the same tall, vertical l
 - Sword combat: three attacks with wind-up, active frames, reach and knockback
 - Injury system: weaker climbing, slow recovery, faster when resting
 - Phone support: touch controls, responsive HUD, camera that keeps fighters clear of the buttons
+- **Training mode**: race and fight a computer opponent (Dummy, Easy, Normal, Hard); no server or network needed
 - **Online multiplayer**: up to **12 players per room**, quick match or private rooms with a 4-letter code, run by an authoritative Node server
 - Tall level built from stacked copies of the collision data, with a zoom-to-fit camera
 - PixiJS (WebGL) rendering
@@ -70,19 +71,50 @@ Portrait suits the tall level best.
 ```bash
 npm install     # installs ws, the only dependency
 npm start       # http://localhost:3000   (set PORT to change it)
-npm test        # 31 automated tests: game rules, rooms and lobby, the real server
+npm test        # 47 automated tests: game rules, the AI, rooms and lobby, the real server
 ```
 
 Open the address in a browser. The menu offers **Quick match**, **Create private room**, joining by code, and
-**Play locally** (two players on one keyboard, no server needed). Address options skip the menu:
+**Training** (against the computer) and **Play locally** (two players on one keyboard); neither needs the server. Address options skip the menu:
 
 | Address | Does |
 |---|---|
 | `?local` | Local two-player game |
+| `?training=LEVEL` | Training against the computer: `dummy`, `easy`, `normal` or `hard` |
 | `?players=N` | Local round with N players (2-12); the extras stand still, handy for testing crowds |
 | `?online` / `?online=create` | Quick match / new private room |
 | `?room=CODE` | Join a room by code |
 | `?touch` | Show the touch controls on a desktop |
+
+## 🤖 Training mode
+
+Pick **Training** in the menu (or open `?training=normal`) to race and fight a computer opponent. You are Player 1 and
+can use either key set (WASD + X/C/V, or the arrow keys + I/O/P). It is a local game: no server, no network.
+
+| Level | What it does | Races alone in | Swings in its first 5 s beside you |
+|---|---|---|---|
+| **Dummy** | Stands still and never acts: for practising attacks | never | 0 |
+| **Easy** | Slow to react, dithers while climbing, swings rarely | 55 to 69 s | 2 |
+| **Normal** | A fair race and a fair fight | 36 to 41 s | 5 |
+| **Hard** | Quick, aggressive, dodges slow attacks, rests to heal when badly hurt | 31 s (the fastest the rules allow) | 7 |
+
+**It plays by the same rules you do.** The AI holds the same left/right keys and calls the same `jump()` and `attack()`
+a human does (`js/ai.js`), so it can't move faster, jump higher or skip injury. What it knows beyond a player is only the
+layout of the level, which you can see too.
+
+How it thinks, in the order it matters:
+1. **A map of the level.** Platforms are found from the same collision blocks the physics uses and linked by which can reach
+   which (a jump of up to 85 px, across gaps up to 60 px). A shortest-path search run backwards from the door tells every
+   platform its best next hop. Hops cost more the higher they climb (the cost grows with the square of the rise), so it
+   prefers a staircase of easy 32 and 48 px steps, the route that still works when injured (at full injury a double jump
+   only rises 68 px, so the map's 64 and 80 px hops are out of reach).
+2. **Choices happen at its reaction time; mechanics happen every step.** A few times a second it decides whether to fight,
+   dither, rest or dodge. Walking onto the right spot and the moment of the jump are checked every step, like a beginner
+   who is slow to decide but still knows where to put their feet.
+3. **Fight, then move on.** On the same level and in range it turns to face you, closes in and swings, picking attacks
+   at random (overhead against someone airborne). Once you are badly hurt it leaves you behind to race, unless you are
+   attacking it.
+4. **Repeatable.** Its random choices come from a seeded generator, so a run can be replayed exactly (the tests do).
 
 ## 🌐 How online play works
 
@@ -127,6 +159,7 @@ Vertical-Platformer-Fighting-Webgame/
 ├── package.json      # npm start / npm test; depends on ws only
 ├── js/               # Runs in the browser
 │   ├── game.js       # THE RULES (shared with the server): players, jump, attack, step
+│   ├── ai.js         # The computer opponent: level map, route to the door, fighting, difficulty (shared)
 │   ├── net-state.js  # The game as plain data: snapshots, applying and blending them (shared)
 │   ├── data/         # combat.js (attacks, injury, hits, HUD) and the Tiled collision data
 │   ├── classes/      # Sprite, Player, Door, CollisionBlock, AudioSFX
@@ -149,7 +182,7 @@ Vertical-Platformer-Fighting-Webgame/
 │   ├── sim.js        # Loads the shared rules into a sandbox per room
 │   ├── sim-api.js    # The doorway into a room's sandbox (input, step, snapshot)
 │   └── stubs.js      # Stand-ins for the browser-only pieces the rules touch
-├── tests/            # node --test: rules, rooms/lobby, the real server
+├── tests/            # node --test: rules, the AI, rooms/lobby, the real server
 ├── assets/           # Images, sprites, audio, Tiled map
 └── README.md         # Documentation
 ```
