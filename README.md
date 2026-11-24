@@ -62,9 +62,9 @@ The game needs to be **served over HTTP**. Opening `index.html` by double-clicki
 because the image loader needs real HTTP.
 
 ```bash
-npm install     # installs ws, the only dependency (package.json says Node 18+; developed and tested on Node 22)
+npm install     # installs ws, the only dependency (the tests pass on Node 18, 20 and 22)
 npm start       # http://localhost:3000   (set PORT to change it)
-npm test        # 59 automated tests: game rules, collision, level art, the AI, rooms and lobby, the real server
+npm test        # 66 automated tests: game rules, collision, level art, the AI, rooms and lobby, the real server
 npm run export-art   # only after editing the Tiled map: regenerates js/data/art.js
 ```
 
@@ -167,10 +167,48 @@ sandbox per room, with tiny stand-ins for the screen and sound (`server/stubs.js
 
 ### Hosting it
 
-Online play needs a host that runs Node and supports WebSockets (Render, Fly.io, Railway, a VPS ...): run `npm start`, set
-`PORT` if the host asks, and serve it over HTTPS (the browser then uses `wss://` automatically). **GitHub Pages alone cannot
-run online play** (static files only). The menu, local play and training all still work there; the online buttons explain
-that the server could not be reached.
+Online play needs a host that runs Node and supports WebSockets (Railway, Render, Fly.io, a VPS ...). **GitHub Pages alone
+cannot run online play** (static files only); the menu, local play and training still work there, and the online buttons
+explain that the server could not be reached. See **Deploying** below.
+
+## 🚀 Deploying
+
+### What the game needs from any host
+- Run `npm start` (no build step). It listens on the **`PORT`** environment variable (3000 if unset) on all network interfaces (it passes no host to Node, whose default is `::` where the machine has IPv6 and `0.0.0.0`
+  otherwise; on a machine without IPv6 it binds `0.0.0.0`, which is what the tests ran on), and
+  serves the page and the WebSocket on that one port. Over HTTPS the browser uses `wss://` automatically.
+- **Exactly one instance.** Rooms live in that process's memory, so two copies would put players in separate worlds.
+- `GET /healthz` returns `ok`, for a platform health check (or just `curl`).
+- On `SIGTERM` (what hosts send on every redeploy) it tells every player "the server is restarting", closes the sockets
+  properly and exits with code 0. A redeploy still ends games in progress.
+- Optional limits, set as environment variables: **`MAX_CONNECTIONS`** (default 1000) and **`MAX_ROOMS`** (default 200).
+  Anything that is not exactly a positive whole number is ignored.
+
+### On Railway
+These steps come from general knowledge of Railway, not from its current documentation (which I could not read when writing
+this), so where its menus differ, follow Railway's docs. The game itself needs nothing Railway-specific.
+1. Merge to `main` on GitHub (done if you are reading this there).
+2. In Railway: **New Project**, **Deploy from GitHub repo**, pick this repo and the `main` branch.
+3. It should detect Node from `package.json`, install the dependencies and run `npm start`. No environment variables are
+   required: Railway supplies `PORT`.
+4. Give the service a **public domain** in its networking settings. That URL is HTTPS, so the game uses `wss://` by itself.
+5. Optionally set the health check path to `/healthz`, and keep the service at **one replica**.
+6. Open the URL on two devices (say a laptop and a phone) and try **Quick match**.
+
+### What it costs to run (measured, not guessed)
+Measured on this code in one Node process, with simulated players moving, jumping and attacking about ten times a second each:
+
+| Room | CPU | Memory | Bandwidth out |
+|---|---|---|---|
+| Busy **12-player** room | about 2.6% of one core | about 0.5 MB | about **430 KB/s (1.5 GB per hour)** |
+| **2-player** room | about 0.7% of one core | about the same | about 15 KB/s (54 MB per hour) |
+
+CPU and memory scale roughly linearly (a busy 12-player room cost 24.6 ms of CPU per second with 10 rooms and 27.4 ms with 200),
+so one core holds roughly 27 busy 12-player rooms or about 100 two-player rooms at 70% load. **Bandwidth is the real limit and cost**, because every snapshot goes to every player in the room
+(12 players receive 12 times what 2 do). Check your plan's price for network egress, and use `MAX_CONNECTIONS` and `MAX_ROOMS`
+to cap spending. Not measured: real internet latency, the host's own CPU and memory limits, or the load balancer's overhead.
+
+Before the URL goes public, settle the **licence for the art and audio** (see Credits and licences below).
 
 ---
 
@@ -254,7 +292,7 @@ Vertical-Platformer-Fighting-Webgame/
 └── assets/           # audio/ (10 sound files), images/ (warrior sprite sheets), tiled/ (the Tiled map, tileset and scenery images the level is drawn from)
 ```
 
-`npm test` runs all 59 tests. Three of the sound files (`death`, `fall`, `run`) are loaded but not currently played, and `assets/images/background.png` (the original flattened picture of the map) is no longer used by the game: the level is drawn from the Tiled layers instead.
+`npm test` runs all 66 tests. Three of the sound files (`death`, `fall`, `run`) are loaded but not currently played, and `assets/images/background.png` (the original flattened picture of the map) is no longer used by the game: the level is drawn from the Tiled layers instead.
 
 ## ⚠️ Known limits
 

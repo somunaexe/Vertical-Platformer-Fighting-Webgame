@@ -8,7 +8,19 @@ const {WebSocketServer} = require('ws')
 const {Lobby} = require('./lobby')
 
 const ROOT = path.join(__dirname, '..')
-const MAX_CONNECTIONS = 1000        //Server-wide cap on open sockets
+/**
+ * Reads a positive whole number from an environment variable, or returns the fallback if it is missing or not
+ * exactly that. Strict on purpose: parseInt would turn a typo like "100MB" into 100 without a word.
+ */
+function envInt(name, fallback) {
+    const text = process.env[name]
+    return typeof text === 'string' && /^[1-9]\d*$/.test(text.trim()) ? Number(text) : fallback
+}
+
+// Server-wide caps. Set MAX_CONNECTIONS / MAX_ROOMS in the environment to change them without touching the code.
+// Bandwidth is the real cost: a busy 12-player room sends about 430 KB/s (1.5 GB an hour), a 2-player room about 15 KB/s.
+const DEFAULT_MAX_CONNECTIONS = envInt('MAX_CONNECTIONS', 1000)
+const DEFAULT_MAX_ROOMS = envInt('MAX_ROOMS', 200)
 const MAX_MESSAGE_BYTES = 1024      //Real messages are tiny; anything bigger is dropped by the socket itself
 const BURST_MESSAGES = 60           //Each client may send this many messages at once...
 const MESSAGES_PER_SECOND = 120     //...and then this many per second (a rapid key-masher is ~20/s)
@@ -45,10 +57,16 @@ function resolvePublicFile(urlPath) {
     return full.startsWith(ROOT + path.sep) ? full : null
 }
 
-/** Answers an HTTP request by streaming the file, if it is a public one. */
+/** Answers an HTTP request: the health check, or the file if it is a public one. */
 function serveStatic(request, response) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
         response.writeHead(405, {Allow: 'GET, HEAD'}).end()
+        return
+    }
+    // A hosting platform (or you) can poll this to see that the server is up. It says nothing about the game.
+    if (new URL(request.url, 'http://localhost').pathname === '/healthz') {
+        response.writeHead(200, {'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store'})
+        response.end(request.method === 'HEAD' ? undefined : 'ok')
         return
     }
     const file = resolvePublicFile(new URL(request.url, 'http://localhost').pathname)
@@ -78,16 +96,18 @@ function serveStatic(request, response) {
  * @param {Object} [options]
  * @param {Number} [options.port=0] - 0 picks a free port (used by tests)
  * @param {Object} [options.lobbyOptions] - Passed to the Lobby/Rooms (tests)
+ * @param {Number} [options.maxConnections] - Open sockets allowed at once (default 1000, or the MAX_CONNECTIONS variable)
+ * @param {Number} [options.maxRooms] - Rooms allowed at once (default 200, or the MAX_ROOMS variable)
  * @returns {Promise<{server, lobby, port, close}>}
  */
-function startServer({port = 0, lobbyOptions = {}} = {}) {
-    const lobby = new Lobby(lobbyOptions)
+function startServer({port = 0, lobbyOptions = {}, maxConnections = DEFAULT_MAX_CONNECTIONS, maxRooms = DEFAULT_MAX_ROOMS} = {}) {
+    const lobby = new Lobby({maxRooms, ...lobbyOptions})
     const server = http.createServer(serveStatic)
     const sockets = new WebSocketServer({server, maxPayload: MAX_MESSAGE_BYTES})
     let nextClientId = 1
 
     sockets.on('connection', socket => {
-        if (sockets.clients.size > MAX_CONNECTIONS) return socket.close(1013, 'busy')
+        if (sockets.clients.size > maxConnections) return socket.close(1013, 'busy')
 
         // The "client" the lobby and rooms talk to: a way to send text, plus the room they are in
         const client = {
@@ -140,17 +160,24 @@ function startServer({port = 0, lobbyOptions = {}} = {}) {
     return new Promise(resolve => {
         server.listen(port, () => resolve({
             server, lobby, port: server.address().port,
-            close: () => new Promise(done => {
+            // A polite shutdown: tell everyone why, close the sockets properly, and only force the stragglers after a second
+            close: async () => {
                 clearInterval(heartbeat)
+                lobby.announceShutdown()
+                const closing = [...sockets.clients].map(socket => new Promise(finished => {
+                    socket.once('close', finished)
+                    socket.close(1001, 'restarting') //1001 = "going away"
+                }))
+                await Promise.race([Promise.all(closing), new Promise(finished => setTimeout(finished, 1000))])
                 for (const room of lobby.rooms.values()) clearInterval(room.timer)
                 for (const socket of sockets.clients) socket.terminate()
-                sockets.close(() => server.close(done))
-            }),
+                await new Promise(done => sockets.close(() => server.close(done)))
+            },
         }))
     })
 }
 
-module.exports = {startServer, resolvePublicFile}
+module.exports = {startServer, resolvePublicFile, envInt}
 
 if (require.main === module) {
     const port = Number(process.env.PORT) || 3000

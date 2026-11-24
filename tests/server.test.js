@@ -3,7 +3,10 @@ const test = require('node:test')
 const assert = require('node:assert')
 const http = require('node:http')
 const WebSocket = require('ws')
-const {startServer} = require('../server/server')
+const {spawn} = require('node:child_process')
+const net = require('node:net')
+const path = require('node:path')
+const {startServer, envInt} = require('../server/server')
 
 /** GET a raw path (sent exactly as given, so nothing normalizes ../ for us). */
 function request(port, rawPath, method = 'GET') {
@@ -153,4 +156,92 @@ test('closing a socket removes the player from their lobby', async t => {
     a.ws.close()
     await new Promise(r => setTimeout(r, 200))
     assert.strictEqual(lobby.rooms.size, 0, 'empty rooms are cleaned up')
+})
+
+test('/healthz answers "ok" and is not a file', async t => {
+    const {port, close} = await startServer()
+    t.after(close)
+    const res = await request(port, '/healthz')
+    assert.strictEqual(res.status, 200)
+    assert.strictEqual(res.body.toString(), 'ok')
+    assert.match(res.type, /text\/plain/)
+    assert.strictEqual((await request(port, '/healthz', 'HEAD')).status, 200)
+    assert.strictEqual((await request(port, '/healthz', 'POST')).status, 405)
+    assert.strictEqual((await request(port, '/healthz/x')).status, 404, 'only the exact path')
+})
+
+test('the connection cap refuses sockets beyond the limit and recovers when one leaves', async t => {
+    const {port, close} = await startServer({maxConnections: 2})
+    t.after(close)
+    const a = await connect(port), b = await connect(port), c = await connect(port)
+    t.after(() => { a.ws.terminate(); b.ws.terminate(); c.ws.terminate() })
+    await new Promise(r => setTimeout(r, 200))
+    assert.strictEqual(c.closed, 1013, 'the third socket is turned away ("try again later")')
+    assert.strictEqual(a.closed, null)
+    assert.strictEqual(b.closed, null)
+    a.ws.close()
+    await new Promise(r => setTimeout(r, 200))
+    const d = await connect(port)
+    t.after(() => d.ws.terminate())
+    await new Promise(r => setTimeout(r, 200))
+    assert.strictEqual(d.closed, null, 'a free slot can be used again')
+})
+
+test('the room cap turns away players who would need a new room', async t => {
+    const {port, close} = await startServer({maxRooms: 1})
+    t.after(close)
+    const a = await connect(port), b = await connect(port)
+    t.after(() => { a.ws.terminate(); b.ws.terminate() })
+    a.send({t: 'join', mode: 'create'})
+    await a.waitFor(m => m.t === 'lobby')
+    b.send({t: 'join', mode: 'create'})
+    assert.strictEqual((await b.waitFor(m => m.t === 'error')).reason, 'server-busy')
+})
+
+test('envInt reads positive whole numbers and ignores anything else', () => {
+    process.env.TEST_LIMIT = '25'
+    assert.strictEqual(envInt('TEST_LIMIT', 7), 25)
+    process.env.TEST_LIMIT = ' 40 '
+    assert.strictEqual(envInt('TEST_LIMIT', 7), 40, 'surrounding spaces are fine')
+    for (const bad of ['', 'abc', '0', '-3', '2.5', '100MB', '1e3', 'NaN', '07x']) {
+        process.env.TEST_LIMIT = bad
+        assert.strictEqual(envInt('TEST_LIMIT', 7), 7, `"${bad}" must be ignored, not partly read`)
+    }
+    delete process.env.TEST_LIMIT
+    assert.strictEqual(envInt('TEST_LIMIT', 7), 7, 'missing -> fallback')
+})
+
+test('shutting down tells players the server is restarting, then closes politely', async t => {
+    const {port, close} = await startServer()
+    const a = await connect(port)
+    t.after(() => a.ws.terminate())
+    a.send({t: 'join', mode: 'create'})
+    await a.waitFor(m => m.t === 'lobby')
+    await close()
+    assert.strictEqual(a.inbox.at(-1).t, 'ended')
+    assert.strictEqual(a.inbox.at(-1).reason, 'restarting')
+    assert.strictEqual(a.closed, 1001, 'closed with "going away", not dropped')
+})
+
+test('the real entrypoint: reads PORT, serves the page and /healthz, and shuts down cleanly on SIGTERM', async t => {
+    // Find a free port, then start `node server/server.js` exactly as `npm start` does
+    const port = await new Promise(resolve => { const s = net.createServer(); s.listen(0, () => { const p = s.address().port; s.close(() => resolve(p)) }) })
+    const child = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'server.js')], {env: {...process.env, PORT: String(port), MAX_ROOMS: '3'}})
+    let output = ''
+    child.stdout.on('data', chunk => { output += chunk })
+    child.stderr.on('data', chunk => { output += chunk })
+    t.after(() => child.kill('SIGKILL'))
+    const exited = new Promise(resolve => child.on('exit', (code, signal) => resolve({code, signal})))
+    for (let i = 0; i < 100 && !output.includes('Game server running'); i++) await new Promise(r => setTimeout(r, 50))
+    assert.match(output, new RegExp(`http://localhost:${port}`), 'it announces the port it was given')
+    assert.strictEqual((await request(port, '/healthz')).body.toString(), 'ok')
+    assert.match((await request(port, '/')).body.toString(), /<canvas>/)
+
+    const a = await connect(port)
+    t.after(() => a.ws.terminate())
+    a.send({t: 'join', mode: 'quick'})
+    await a.waitFor(m => m.t === 'lobby')
+    child.kill('SIGTERM') //What a host sends when it redeploys
+    assert.deepStrictEqual(await exited, {code: 0, signal: null}, 'a clean exit, not a crash or a kill')
+    assert.strictEqual(a.inbox.at(-1).reason, 'restarting')
 })
