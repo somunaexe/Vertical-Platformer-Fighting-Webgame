@@ -11,6 +11,7 @@ const MENU_MESSAGES = {
     'all-left': 'Everyone else left the race.',
     'restarting': 'The server is restarting. Please try again in a moment.',
     'unreachable': 'Could not reach the game server. Online play needs the Node server (npm start).',
+    'unreachableConfigured': 'Could not reach the game server. It may be offline or starting up: try again in a moment.',
     'disconnected': 'Lost the connection to the server.',
 }
 
@@ -142,7 +143,7 @@ function startTraining(level) {
 /** Connects and joins; shows progress, and an explanation if the server can't be reached. */
 function joinOnline(request) {
     show('connecting', element('h1', '', 'Connecting...'))
-    connectOnline(request).catch(() => showMainMenu(MENU_MESSAGES.unreachable))
+    connectOnline(request).catch(() => showMainMenu(GAME_SERVER_URL ? MENU_MESSAGES.unreachableConfigured : MENU_MESSAGES.unreachable))
 }
 
 /** Draws the waiting room from the server's lobby message. */
