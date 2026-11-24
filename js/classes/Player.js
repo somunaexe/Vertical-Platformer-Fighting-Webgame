@@ -64,6 +64,7 @@ class Player extends Sprite {
         this.position.x += this.velocity.x * dt;
         this.updateHitbox()
         this.checkForHorizontalCollisions()
+        this.previousBottom = this.hitbox.position.y + this.hitbox.height //Where the feet were before this step's fall or jump
         this.applyGravity(dt)
         this.updateHitbox()
         this.checkForVerticalCollisions()
@@ -133,7 +134,31 @@ class Player extends Sprite {
     }
 
     checkForVerticalCollisions() {
-        // Detects collision blocks
+        this.landOnPlatforms()
+        this.collideWithSolidBlocks()
+    }
+
+    /**
+     * One-way platforms: land on the HIGHEST one the feet crossed this step (the first you meet when falling),
+     * however fast the fall. See landsOnPlatform for why this is a "crossed it" test rather than "inside it".
+     */
+    landOnPlatforms() {
+        let landing = null
+        for (const platform of this.platformBlocks) {
+            if (landsOnPlatform(this, platform) && (!landing || platform.position.y < landing.position.y)) landing = platform
+        }
+        if (!landing) return
+        this.announceLanding()
+        this.collidedVertically = true
+        this.velocity.y = 0
+        const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
+        this.position.y = landing.position.y - offset - 0.01
+        this.updateHitbox()
+        this.jumps = 2
+    }
+
+    /** Solid blocks (the floor and the ledge): standing on them from above, bumping the head from below. */
+    collideWithSolidBlocks() {
         for (let i =0; i < this.collisionBlocks.length; i++) {
             const block = this.collisionBlocks[i]
 
@@ -151,23 +176,6 @@ class Player extends Sprite {
                     this.velocity.y = 0
                     const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
                     this.position.y = block.position.y + block.height - offset + 0.01
-                    this.jumps = 2
-                    break
-                }
-            }
-        }
-
-        //Detects platform block
-        for (let i =0; i < this.platformBlocks.length; i++) {
-            const platformBlock = this.platformBlocks[i]
-
-            if(platformCollision({object1 : this.hitbox, object2 : platformBlock})){
-                this.collidedVertically = true
-                if(this.velocity.y > 0) {
-                    this.announceLanding()
-                    this.velocity.y = 0
-                    const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
-                    this.position.y = platformBlock.position.y - offset - 0.01
                     this.jumps = 2
                     break
                 }

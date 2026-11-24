@@ -18,8 +18,6 @@ const LEVEL_COPIES = 5
 const COPY_PERIOD_ROWS = 21
 const COPY_PERIOD = COPY_PERIOD_ROWS * TILE //336
 
-const BACKGROUND_HEIGHT = 432 //Height of background.png; the background is repeated to cover the level
-
 const LEVEL = {
     left: 0,
     top: -(LEVEL_COPIES - 1) * COPY_PERIOD, //y of the very top of the level
@@ -70,4 +68,34 @@ function buildLevel() {
     }
 
     return {collisionBlocks, platformBlocks}
+}
+
+/**
+ * Where every piece of tile art goes in the tall level, as world pixels.
+ * It uses the very same copy offsets as buildLevel(), which is the whole point: the platform you SEE and the
+ * platform you can STAND ON come from the same arithmetic, so they cannot drift apart.
+ * - Ground art (trees, the dark floor, the ledge, bushes): bottom copy only, because the solid floor and ledge only exist there.
+ * - Platform art and the vines hanging under it: every copy, shifted up by k * COPY_PERIOD exactly like the platform collision.
+ * Needs artLayers (js/data/art.js).
+ * @returns {{layer: string, copy: number, gid: number, x: number, y: number}[]} gid is the tile's id in the tileset
+ */
+function levelArtPlacements() {
+    const placements = []
+    const place = (layer, copy) => {
+        artLayers[layer].forEach((gid, index) => {
+            if (!gid) return
+            placements.push({
+                layer, copy, gid,
+                x: (index % MAP_COLS) * TILE,
+                y: Math.floor(index / MAP_COLS) * TILE - copy * COPY_PERIOD,
+            })
+        })
+    }
+    place('trees', 0)
+    place('foreground', 0)
+    for (let copy = 0; copy < LEVEL_COPIES; copy++) {
+        place('lights', copy)
+        place('platforms', copy)
+    }
+    return placements
 }

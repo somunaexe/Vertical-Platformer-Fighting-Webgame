@@ -1,6 +1,3 @@
-//Created in startGame() once Pixi and the textures are ready
-let backgrounds = [] //The background image repeated to cover the tall level
-
 //Add the background music
 const bgMusic = new AudioSFX({src: 'assets/audio/bg-music.mp3', volume: 0.5, autoplay: true, loop: true});
 
@@ -44,6 +41,7 @@ function animate(timestamp) {
     if (!net.active) stepGame(dt) //Local play: all the rules live in game.js. Online, the server runs them and snapshots arrive by network
 
     updateEffects(dt)
+    updateDebugView()
     updateHud(players)
     app.render() //One paint per game frame, after all state is updated
 }
@@ -53,17 +51,9 @@ function animate(timestamp) {
  * Everything that needs a texture waits for this, because textures load asynchronously.
  */
 async function bootRenderer() {
-    const backgroundSrc = "assets/images/background.png"
     const sheets = Object.values(createWarriorAnimations()).map(animation => animation.imageSrc)
-    await initRenderer([backgroundSrc, ...sheets])
-
-    //Stack copies of the background upwards from the bottom of the level until the top is covered
-    const backgroundCount = Math.ceil(LEVEL.height / BACKGROUND_HEIGHT)
-    for (let i = 0; i < backgroundCount; i++) {
-        const background = new Sprite({imageSrc: backgroundSrc, position: {x: 0, y: -i * BACKGROUND_HEIGHT}})
-        background.draw() //Static: positioned once, never animated
-        backgrounds.push(background)
-    }
+    await initRenderer([...levelArtTextureUrls(), ...sheets])
+    buildLevelArt() //Sky, ground, platforms and vines, drawn from the Tiled map's layers (see js/level-art.js)
     window.requestAnimationFrame(animate)
 }
 
@@ -74,6 +64,7 @@ async function bootRenderer() {
 function beginRound(count) {
     createRoundEntities(count) //The door and the players (see game.js); after the background so they draw on top
     initEffects() //After the players, so particles draw on top of them
+    attachDebugView() //Collision overlay for ?debug / F2; invisible unless switched on
     updateCamera(activePlayers(), app.screen, 0, true) //Start already framed, no glide from nowhere
 }
 
@@ -81,6 +72,7 @@ function beginRound(count) {
 function teardownRound() {
     if (!players.length) return
     clearEffects()
+    detachDebugView()
     effects.layer.destroy()
     for (const player of players) player.view.destroy()
     door.view.destroy()
@@ -94,7 +86,7 @@ function teardownRound() {
 }
 
 //Normally the menu appears. The address can skip it: ?online, ?online=create or ?room=CODE joins a game server;
-//?local starts a local round, ?training=easy|normal|hard|dummy a round against the computer, ?players=N a local round with N players (2-12; the extras stand still, handy for testing crowds)
+//?debug shows the collision overlay (F2 toggles it); ?local starts a local round, ?training=easy|normal|hard|dummy a round against the computer, ?players=N a local round with N players (2-12; the extras stand still, handy for testing crowds)
 const params = new URLSearchParams(location.search)
 bootRenderer().then(() => {
     createMenu()

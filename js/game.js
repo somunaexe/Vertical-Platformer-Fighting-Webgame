@@ -224,11 +224,23 @@ function runPlayerAnimation(player, keys, dt) {
     else if (player.velocity.y > 0) player.switchSprite(player.facingLeft ? 'fallLeft' : 'fall')
 }
 
+// A frame longer than this is simulated in several smaller steps. A long fall reaches ~1,350 px/s, so a 50ms
+// frame would move a player 68px in one go, enough to jump clean over the 16px floor (a hitbox and a block
+// can only catch each other if the step is under their combined height, about 43px). At 1/40 s the biggest
+// step is about 34px. The server's fixed 1/60 s ticks, and any frame at 40+ fps, are exactly one step.
+const MAX_PHYSICS_STEP = 1 / 40
+
 /**
- * Advances the whole game by dt seconds: every player moves, swords are checked, the door is checked.
+ * Advances the whole game by dt seconds, in as many small steps as needed to keep fast movement from skipping over things.
  * @param {Number} dt - Seconds to simulate
  */
 function stepGame(dt) {
+    const steps = Math.max(1, Math.ceil(dt / MAX_PHYSICS_STEP - 1e-9))
+    for (let i = 0; i < steps; i++) stepOnce(dt / steps)
+}
+
+/** One step of the game: every player moves, swords are checked, the door is checked. */
+function stepOnce(dt) {
     for (const ai of aiControllers) ai.update(dt) //Computer players decide their keys first, like humans pressing them
     players.forEach((player, slot) => {
         if (!player.departed) runPlayerAnimation(player, playerKeys[slot], dt)
