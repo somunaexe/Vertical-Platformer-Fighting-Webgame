@@ -1,162 +1,31 @@
-const gravity = 540; //Downward acceleration in pixels per second squared (was 0.15 per frame at 60 fps)
-
-//Collision blocks for the whole tall level (see js/level.js)
-const {collisionBlocks, platformBlocks} = buildLevel()
-
 //Created in startGame() once Pixi and the textures are ready
 let backgrounds = [] //The background image repeated to cover the tall level
-let door
-let player1
-let player2
-let players = [] //Everyone in the race; the camera keeps all of them on screen
 
 //Add the background music
 const bgMusic = new AudioSFX({src: 'assets/audio/bg-music.mp3', volume: 0.5, autoplay: true, loop: true});
 
-/**
- * Builds the animation table for a warrior. Returns a fresh object each call because
- * the Player constructor attaches an Image to every entry, which players must not share.
- * Each entry is [name, spritesheet file, number of frames, frameBuffer (game frames per animation frame)].
- */
-function createWarriorAnimations() {
-    const sheets = [
-        ['idle',           'Idle.png',           8, 3],
-        ['run',            'Run.png',            8, 5],
-        ['jump',           'Jump.png',           2, 5],
-        ['fall',           'Fall.png',           2, 5],
-        ['idleLeft',       'IdleLeft.png',       8, 3],
-        ['runLeft',        'RunLeft.png',        8, 5],
-        ['jumpLeft',       'JumpLeft.png',       2, 5],
-        ['fallLeft',       'FallLeft.png',       2, 5],
-        ['attackLow',      'AttackLow.png',      4, 6],
-        ['attackMid',      'AttackMid.png',      4, 4],
-        ['attackOverhead', 'AttackOverhead.png', 4, 5],
-        ['hit',            'Take Hit.png',       4, 5],
-        ['hitSilhouette',  'HitSilhouette.png',  4, 5],
-        ['death',          'Death.png',          6, 5],
-    ]
-    const animations = {}
-    for (const [name, file, frames, frameBuffer] of sheets) {
-        animations[name] = {imageSrc: `assets/images/warrior/${file}`, frames, frameBuffer}
-    }
-    //Only right-facing sheets exist for these, so they are mirrored when drawn facing left
-    for (const name of ['attackLow', 'attackMid', 'attackOverhead', 'hit', 'hitSilhouette', 'death']) {
-        animations[name].mirrorWhenLeft = true
-    }
-    return animations
-}
-
-/**
- * Builds the sound set for a warrior. Each player needs their own Audio objects,
- * since playing a sound restarts it (shared objects would cut each other off).
- */
-function createWarriorSounds() {
-    const sound = (file, options) => new AudioSFX({src: `assets/audio/${file}`, ...options})
-    return {
-        death: sound('death.mp3'),
-        fall: sound('fall.mp3'),
-        grunt: sound('grunt.mp3'),
-        hit: sound('hit.mp3'),
-        jump: sound('jump.mp3'),
-        lowAttack: sound('low-attack.mp3'),
-        midAttack: sound('mid-attack.mp3'),
-        overheadAttack: sound('overhead-attack.mp3'),
-        run: sound('run.mp3', {loop: true}),
-    }
-}
-
-/**
- * Creates a warrior at the given spawn point.
- * @param {Object} options
- * @param {String} options.name - Shown above the injury bar
- * @param {Number} options.color - Tint (0xRRGGBB) that identifies this player on the HUD
- * @param {Number} options.x - Spawn x position
- * @param {Number} options.y - Spawn y position
- * @param {Boolean} options.facingLeft - Which way the warrior starts facing
- * @returns {Player}
- */
-function createWarrior({name, color, x, y, facingLeft}) {
-    return new Player({
-        name,
-        color,
-        imageSrc: facingLeft ? "assets/images/warrior/IdleLeft.png" : "assets/images/warrior/Idle.png",
-        position: {x, y},
-        velocity: {x: 0, y: 0},
-        collisionBlocks,
-        platformBlocks,
-        frames: 8,
-        facingLeft,
-        animations: createWarriorAnimations(),
-        sounds: createWarriorSounds(),
-    })
-}
-
-/** Starts a fresh round: no injuries, spawn positions. */
-function resetMatch() {
-    match.over = false
-    match.winner = null
-    player1.reset()
-    player2.reset()
+// When a round restarts, the presentation clears its leftovers and the camera jumps back (no glide across the level)
+GameEvents.on('reset', () => {
     clearEffects()
-    updateCamera(players, app.screen, 0, true) //Don't glide across the level back to the start
-}
+    updateCamera(activePlayers(), app.screen, 0, true)
+})
 
 //Timing state for the game loop. Lives outside animate() so it survives between frames
 let lastTimestamp = null //Timestamp (ms) of the previous frame; null until the first frame
 const MAX_DT = 0.05 //Longest time step allowed, in seconds (= 20 frames per second)
-const MOVE_SPEED = 120 //Horizontal speed in pixels per second
-const noKeys = {a: {pressed: false}, d: {pressed: false}} //Stand-in input when controls are locked
 
 /**
- * Updates the player's animation and position based on the given keys
- * @param {Player} player - The player to update
- * @param {Object} keys - An object containing the pressed state of the left and right arrow keys
- * @param {Number} dt - Seconds elapsed since the previous frame
- */
-function runPlayerAnimation(player, keys, dt) {
-    player.checkForHorizontalCanvasCollisions(dt)
-    player.update(dt);
-    player.velocity.x = 0
-
-    //Stunned: no control, just the hit animation while being pushed back
-    if (player.hitTimer > 0) {
-        player.velocity.x = player.knockbackSpeed
-        player.switchSprite('hit')
-        return
-    }
-
-    //Once the round is over nobody can steer
-    const input = match.over ? noKeys : keys
-
-    //Mid-attack the player is committed: no walking and no animation changes until the swing ends
-    if (player.isAttacking) return
-
-    if (input.d.pressed) {
-        player.velocity.x = MOVE_SPEED * player.speedMultiplier //Move the player right (pixels per second)
-        player.facingLeft = false //Set the player's facing direction
-        player.switchSprite('run') //Switch to the run animation
-    }
-    else if (input.a.pressed) {
-        player.velocity.x = -MOVE_SPEED * player.speedMultiplier //Move the player left (pixels per second)
-        player.facingLeft = true //Set the player's facing direction
-        player.switchSprite('runLeft') //Switch to the runLeft animation
-    }
-    else if (player.velocity.y === 0) {
-        player.switchSprite(player.facingLeft ? 'idleLeft' : 'idle')
-    }
-
-    //Airborne animations, depending on the player's facing direction
-    if (player.velocity.y < 0) player.switchSprite(player.facingLeft ? 'jumpLeft' : 'jump')
-    else if (player.velocity.y > 0) player.switchSprite(player.facingLeft ? 'fallLeft' : 'fall')
-}
-
-/**
- * Runs one game frame: measures dt, updates players and combat, then has Pixi paint it.
- * the background and player animations, and applying camera transformations.
- * Utilizes requestAnimationFrame for smooth rendering.
+ * Runs one browser frame: measures dt, steps the game rules, then has Pixi paint the result.
+ * Re-schedules itself with requestAnimationFrame, so it runs once per monitor refresh.
+ * @param {Number} timestamp - Milliseconds since page load, supplied by requestAnimationFrame
  */
 function animate(timestamp) {
     window.requestAnimationFrame(animate)
+    if (!players.length) { //Between rounds (menu, lobby): nothing to simulate; show the level behind the menu
+        idleCamera(app.screen)
+        app.render()
+        return
+    }
 
     // Seconds since the previous frame. On the very first frame there is no previous
     // timestamp, so dt is 0 (nothing moves yet) instead of NaN.
@@ -164,26 +33,26 @@ function animate(timestamp) {
     const dt = lastTimestamp === null ? 0 : Math.min((timestamp - lastTimestamp) / 1000, MAX_DT)
     lastTimestamp = timestamp
 
+    //Online: show the server's game (a moment ago, blended) BEFORE framing, so the camera sees the puppets where they're drawn
+    if (net.active) renderNetworkState(timestamp)
+
     //Frame everyone. Done before the players move so the sprites and the camera agree this frame
     //Normally frame everyone; once the race is won, glide in on the winner (nobody is racing any more)
-    const cameraFocus = match.over && match.winner ? [match.winner] : players
+    const cameraFocus = match.over && match.winner ? [match.winner] : activePlayers()
     updateCamera(cameraFocus, app.screen, dt)
 
-    runPlayerAnimation(player1, player1Keys, dt)
-    runPlayerAnimation(player2, player2Keys, dt)
-    resolveCombat(player1, player2)
-    checkDoorWin([player1, player2], door)
+    if (!net.active) stepGame(dt) //Local play: all the rules live in game.js. Online, the server runs them and snapshots arrive by network
 
     updateEffects(dt)
-    updateHud(player1, player2)
+    updateHud(players)
     app.render() //One paint per game frame, after all state is updated
 }
 
 /**
- * Boots the game: starts Pixi, loads every image, builds the scene, then starts the loop.
+ * Starts Pixi, loads every image and builds the level's background. Done once per page.
  * Everything that needs a texture waits for this, because textures load asynchronously.
  */
-async function startGame() {
+async function bootRenderer() {
     const backgroundSrc = "assets/images/background.png"
     const sheets = Object.values(createWarriorAnimations()).map(animation => animation.imageSrc)
     await initRenderer([backgroundSrc, ...sheets])
@@ -195,14 +64,42 @@ async function startGame() {
         background.draw() //Static: positioned once, never animated
         backgrounds.push(background)
     }
-    door = new Door({position: doorPosition(36)}) //On the highest platform of the top copy
-    player1 = createWarrior({name: 'PLAYER 1', color: 0x4aa3ff, x: 100, y: 300, facingLeft: false})
-    player2 = createWarrior({name: 'PLAYER 2', color: 0xff7a59, x: 300, y: 300, facingLeft: true})
-    players = [player1, player2]
-    initEffects() //After the players, so particles draw on top of them
-    updateCamera(players, app.screen, 0, true) //Start already framed, no glide from nowhere
-
     window.requestAnimationFrame(animate)
 }
 
-startGame()
+/**
+ * Starts a round: creates the door and the players and frames the camera on them.
+ * @param {Number} count - How many players (2 to MAX_PLAYERS)
+ */
+function beginRound(count) {
+    createRoundEntities(count) //The door and the players (see game.js); after the background so they draw on top
+    initEffects() //After the players, so particles draw on top of them
+    updateCamera(activePlayers(), app.screen, 0, true) //Start already framed, no glide from nowhere
+}
+
+/** Removes the current round's players, door and effects from the scene (before the next round, or when leaving). */
+function teardownRound() {
+    if (!players.length) return
+    clearEffects()
+    effects.layer.destroy()
+    for (const player of players) player.view.destroy()
+    door.view.destroy()
+    players = []
+    door = undefined
+    match.over = false
+    match.winner = null
+}
+
+//Normally the menu appears. The address can skip it: ?online, ?online=create or ?room=CODE joins a game server;
+//?local starts a local round, ?players=N a local round with N players (2-12; the extras stand still, handy for testing crowds)
+const params = new URLSearchParams(location.search)
+bootRenderer().then(() => {
+    createMenu()
+    if (params.has('room')) return joinOnline({mode: 'code', code: params.get('room')})
+    if (params.has('online')) return joinOnline({mode: params.get('online') === 'create' ? 'create' : 'quick'})
+    if (params.has('local') || params.has('players')) {
+        const requested = parseInt(params.get('players'), 10)
+        return startLocal(Number.isInteger(requested) ? Math.min(MAX_PLAYERS, Math.max(2, requested)) : 2)
+    }
+    showMainMenu() //Normal start: the menu
+})

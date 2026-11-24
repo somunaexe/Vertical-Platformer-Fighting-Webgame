@@ -10,6 +10,7 @@
 //   hit     {attacker, victim, injury, x, y, direction}   x, y = contact point in world pixels
 //   land    {player, speed, x, y}                         speed = downward speed on impact
 //   win     {winner, x, y}                                winner is null for a draw
+//   reset   {}                                            a new round has started
 const GameEvents = {
     listeners: {},
 

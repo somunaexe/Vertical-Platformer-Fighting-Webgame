@@ -14,6 +14,7 @@ class Player extends Sprite {
         this.hitTimer = 0 //Seconds of hit-stun left
         this.invulnerableTimer = 0 //Seconds of invulnerability left
         this.flashTimer = 0 //Seconds of white hit-flash left
+        this.departed = false //True once the player has left the room: hidden, and ignored by the rules and the camera
         this.knockbackDirection = 0 //-1 pushed left, +1 pushed right
         this.currentAttack = null //Key of ATTACKS while attacking
         this.attackHasHit = false //Each swing can only land once
@@ -27,6 +28,7 @@ class Player extends Sprite {
             height: 27,
         }
         this.animations = animations
+        this.animationKey = facingLeft ? 'idleLeft' : 'idle' //Matches the sheet the Sprite constructor started with
 
         for (let key in this.animations) {
             this.animations[key].textures = sheetFrames(this.animations[key].imageSrc, this.animations[key].frames)
@@ -46,6 +48,7 @@ class Player extends Sprite {
         this.currentFrame = 0
         this.elapsedTime = 0
         this.textures = animation.textures
+        this.animationKey = key //Remembered by name so the animation can be described in a network snapshot
         this.mirrorWhenLeft = !!this.animations[key].mirrorWhenLeft
         this.frameBuffer = this.animations[key].frameBuffer
         this.frames = this.animations[key].frames
@@ -201,6 +204,12 @@ class Player extends Sprite {
     /** Multiplier on jump take-off speed: 1 when fresh, INJURY_JUMP_FLOOR at maximum injury. */
     get jumpMultiplier() {
         return 1 - (1 - INJURY_JUMP_FLOOR) * this.injuryRatio
+    }
+
+    /** Removes the player from the round without renumbering anyone else: hidden and no longer simulated. */
+    depart() {
+        this.departed = true
+        this.view.visible = false
     }
 
     /** True when the player is free to start a jump or attack. */

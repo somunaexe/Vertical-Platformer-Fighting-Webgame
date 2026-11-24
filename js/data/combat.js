@@ -68,28 +68,31 @@ function contactPoint(a, b) {
 }
 
 /**
- * Checks both players' attacks for hits this frame and applies damage.
- * Both hits are worked out BEFORE either is applied, so two simultaneous hits trade
- * instead of the player processed first winning automatically.
- * @param {Player} p1
- * @param {Player} p2
+ * Checks every player's attack against every other player and applies the hits that land.
+ * All hits are worked out BEFORE any is applied, so simultaneous hits trade instead of whoever
+ * is processed first winning automatically. That also means everything a hit needs (its injury and
+ * contact point) is read up front: applying one hit clears the victim's own current attack.
+ * A single swing can hit several players standing in front of it.
+ * @param {Player[]} players
  */
-function resolveCombat(p1, p2) {
+function resolveCombat(players) {
     if (match.over) return
 
     const landed = []
-    for (const [attacker, defender] of [[p1, p2], [p2, p1]]) {
-        if (attacker.isAttackActive()
-            && defender.invulnerableTimer <= 0
-            && collision(attacker.attackHitbox(), defender.hitbox)) {
-            //Read the injury now: applying the other hit of a trade clears this attacker's currentAttack
-            landed.push([attacker, defender, ATTACKS[attacker.currentAttack].injury])
+    for (const attacker of players) {
+        if (!attacker.isAttackActive()) continue
+        const swordBox = attacker.attackHitbox()
+        const injury = ATTACKS[attacker.currentAttack].injury
+        for (const defender of players) {
+            if (defender === attacker || defender.invulnerableTimer > 0) continue
+            if (collision(swordBox, defender.hitbox)) {
+                landed.push({attacker, defender, injury, contact: contactPoint(swordBox, defender.hitbox)})
+            }
         }
     }
 
-    for (const [attacker, defender, injury] of landed) {
-        attacker.attackHasHit = true //One hit per swing
-        const contact = contactPoint(attacker.attackHitbox(), defender.hitbox) //Measured before the hit changes anything
+    for (const {attacker, defender, injury, contact} of landed) {
+        attacker.attackHasHit = true //One swing; it cannot land again
         defender.takeHit(injury, attacker)
         GameEvents.emit('hit', {attacker, victim: defender, injury, direction: defender.knockbackDirection, ...contact})
     }
@@ -106,27 +109,27 @@ function raceProgress(player) {
     return Math.min(1, Math.max(0, (groundY - bodyBottom) / (groundY - doorFeetY)))
 }
 
+// Which slot is "me" when playing online (set by the networking code); null in local play
+let localSlot = null
+
 // Pixi objects for the HUD, created on the first updateHud() call
 let hud = null
 
-function createHud(p1, p2) {
-    const text = (size, weight) => new PIXI.Text({
+function createHud() {
+    const text = (size, weight, fill = 0xffffff) => new PIXI.Text({
         text: '',
-        style: {fontFamily: 'sans-serif', fontSize: size, fontWeight: weight, fill: 0xffffff},
+        style: {fontFamily: 'sans-serif', fontSize: size, fontWeight: weight, fill},
     })
     hud = {
-        graphics: new PIXI.Graphics(), //Bars and the banner background, redrawn every frame
+        graphics: new PIXI.Graphics(), //Bars, track and banner background, redrawn every frame
         nameLeft: text(16, 'bold'),
         nameRight: text(16, 'bold'),
         title: text(48, 'bold'),
         subtitle: text(20, 'normal'),
         captionLeft: text(12, 'normal'),
         captionRight: text(12, 'normal'),
+        plates: [], //One small label per player slot, created as needed
     }
-    hud.nameLeft.text = p1.name
-    hud.nameRight.text = p2.name
-    hud.nameLeft.style.fill = p1.color
-    hud.nameRight.style.fill = p2.color
     hud.nameLeft.anchor.set(0, 1)
     hud.nameRight.anchor.set(1, 1)
     hud.captionLeft.text = hud.captionRight.text = 'INJURY'
@@ -138,12 +141,32 @@ function createHud(p1, p2) {
     hudLayer.addChild(hud.graphics, hud.nameLeft, hud.nameRight, hud.captionLeft, hud.captionRight, hud.title, hud.subtitle)
 }
 
+/** The small label that floats above a player; created the first time it is needed. */
+function plateFor(slot, player) {
+    if (!hud.plates[slot]) {
+        const label = new PIXI.Text({text: '', style: {fontFamily: 'sans-serif', fontSize: 12, fontWeight: 'bold', fill: player.color, stroke: {color: 0x000000, width: 3}}})
+        label.anchor.set(0.5, 1)
+        hudLayer.addChild(label)
+        hud.plates[slot] = label
+    }
+    return hud.plates[slot]
+}
+
+/** Sets a Pixi Text's string only when it changed (changing it rebuilds the texture). */
+function setText(label, value) {
+    if (label.text !== value) label.text = value
+}
+
 /**
- * Syncs the injury bars and the end-of-round banner with the game state.
- * Lives in screen space (hudLayer), so it ignores the camera. Call once per frame.
+ * Syncs the HUD with the game state. Lives in screen space (hudLayer), so it ignores the camera.
+ * - Big injury bars: you (online), or both players in a two-player local game.
+ * - A small label and injury bar floating above every fighter whenever there are more than two,
+ *   or when playing online, so you can always tell who is who and how hurt they are.
+ * - A progress track with a coloured dot per player, and the end-of-round banner.
+ * @param {Player[]} all - Every player, in slot order
  */
-function updateHud(p1, p2) {
-    if (!hud) createHud(p1, p2)
+function updateHud(all) {
+    if (!hud) createHud()
 
     const width = app.screen.width
     const height = app.screen.height
@@ -155,9 +178,13 @@ function updateHud(p1, p2) {
     const barHeight = 22 * ui
     const barTop = margin + 18 * ui
     for (const label of [hud.nameLeft, hud.nameRight, hud.captionLeft, hud.captionRight, hud.title, hud.subtitle]) label.scale.set(ui)
+    const active = all.filter(player => !player.departed)
 
     const g = hud.graphics
     g.clear()
+
+    // Big bars: the local player alone online, otherwise both players of a two-player game (or just the first in a crowd)
+    const barPlayers = localSlot !== null ? [all[localSlot]] : (all.length <= 2 ? all : [all[0]])
     const drawBar = (player, x, alignRight) => {
         const ratio = player.injury / MAX_INJURY //0 = fresh, 1 = badly injured
         const filled = barWidth * ratio
@@ -166,12 +193,40 @@ function updateHud(p1, p2) {
         g.rect(alignRight ? x + barWidth - filled : x, barTop, filled, barHeight).fill(colour)
         g.rect(x, barTop, barWidth, barHeight).stroke({width: 2 * ui, color: 0xffffff})
     }
-    drawBar(p1, margin, false)
-    drawBar(p2, width - margin - barWidth, true)
+    const label = player => player.name + (localSlot !== null && player === all[localSlot] ? ' (YOU)' : '')
+    hud.nameLeft.visible = hud.captionLeft.visible = barPlayers.length > 0
+    hud.nameRight.visible = hud.captionRight.visible = barPlayers.length > 1
+    if (barPlayers[0]) {
+        drawBar(barPlayers[0], margin, false)
+        setText(hud.nameLeft, label(barPlayers[0]))
+        hud.nameLeft.style.fill = barPlayers[0].color
+    }
+    if (barPlayers[1]) {
+        drawBar(barPlayers[1], width - margin - barWidth, true)
+        setText(hud.nameRight, label(barPlayers[1]))
+        hud.nameRight.style.fill = barPlayers[1].color
+    }
     hud.nameLeft.position.set(margin, barTop - 4 * ui)
     hud.nameRight.position.set(width - margin, barTop - 4 * ui)
     hud.captionLeft.position.set(margin, barTop + barHeight + 3 * ui)
     hud.captionRight.position.set(width - margin, barTop + barHeight + 3 * ui)
+
+    // Floating labels with a mini injury bar above each fighter's head (projected from the world to the screen)
+    const showPlates = all.length > 2 || localSlot !== null
+    all.forEach((player, slot) => {
+        const plate = plateFor(slot, player)
+        plate.visible = showPlates && !player.departed
+        if (!plate.visible) return
+        setText(plate, slot === localSlot ? 'YOU' : `P${slot + 1}`)
+        plate.scale.set(ui)
+        const x = world.position.x + (player.hitbox.position.x + player.hitbox.width / 2) * camera.zoom
+        const headY = world.position.y + player.hitbox.position.y * camera.zoom - 10 * ui
+        plate.position.set(x, headY - 6 * ui)
+        const w = 34 * ui, h = 4 * ui
+        const ratio = player.injury / MAX_INJURY
+        g.rect(x - w / 2, headY - h / 2, w, h).fill({color: 0x000000, alpha: 0.65})
+        g.rect(x - w / 2, headY - h / 2, w * ratio, h).fill(ratio < 0.5 ? 0x4caf50 : ratio < 0.75 ? 0xe0a020 : 0xd03030)
+    })
 
     // Race progress: a vertical track with the door at the top and a coloured dot per player
     const trackX = width - 24 * ui
@@ -180,17 +235,19 @@ function updateHud(p1, p2) {
     const trackBottom = height - (touch ? 125 : 30 * ui)
     g.roundRect(trackX - 2 * ui, trackTop, 4 * ui, trackBottom - trackTop, 2 * ui).fill({color: 0xffffff, alpha: 0.35})
     g.roundRect(trackX - 7 * ui, trackTop - 14 * ui, 14 * ui, 14 * ui, 3 * ui).fill(0xf2c14e) //The door
-    ;[p1, p2].forEach((player, i) => {
+    active.forEach(player => {
+        const slot = all.indexOf(player)
         const y = trackBottom - raceProgress(player) * (trackBottom - trackTop)
-        const x = trackX + (i === 0 ? -11 : 11) * ui //Side by side so two players at the same height don't hide each other
-        g.circle(x, y, 7 * ui).fill(player.color).stroke({width: 2 * ui, color: 0xffffff})
+        //Three columns, so players at the same height don't hide each other
+        const x = trackX + ((slot % 3) - 1) * 11 * ui
+        g.circle(x, y, (slot === localSlot ? 8 : 6) * ui).fill(player.color).stroke({width: 2 * ui, color: 0xffffff})
     })
 
     hud.title.visible = hud.subtitle.visible = match.over
     if (match.over) {
         g.rect(0, height / 2 - 70 * ui, width, 140 * ui).fill({color: 0x000000, alpha: 0.55})
         const message = match.winner ? `${match.winner.name} WINS!` : 'DRAW!'
-        if (hud.title.text !== message) hud.title.text = message //Changing text rebuilds its texture, so only when needed
+        setText(hud.title, message)
         hud.title.position.set(width / 2, height / 2 - 10 * ui)
         hud.subtitle.position.set(width / 2, height / 2 + 35 * ui)
     }
