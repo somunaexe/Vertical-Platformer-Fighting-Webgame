@@ -40,7 +40,7 @@ function jump(player) {
     if (player.jumps <= 0 || !player.canAct()) return
     player.collidedVertically = false
     player.jumps--
-    player.velocity.y = -JUMP_SPEED
+    player.velocity.y = -JUMP_SPEED * player.jumpMultiplier //Injured players jump lower
 
     player.sounds.jump.currentTime = 0
     player.sounds.jump.playbackRate = 2.0

@@ -2,18 +2,18 @@
 
 A fast-paced **2D vertical platformer + fighting game** built for the web using HTML, CSS, and JavaScript.
 
-In this game, players climb, jump, and fight their way upward through vertical levels while battling enemies and mastering movement mechanics.
+Players race up a vertical level to a door at the top, fighting each other on the way.
 
 ---
 
 ## 🎮 Game Concept
 
-This project combines two genres:
+A competitive **race to the top**. Every player climbs the same tall, vertical level and
+**the first to reach the door wins**. You fight as you climb, but nobody dies:
 
-- 🧗 Vertical platforming (climbing upward through levels)
-- ⚔️ Fighting mechanics (combat while moving vertically)
-
-The goal is to reach the top while surviving enemy encounters and mastering movement physics.
+- A sword hit adds **injury**. The more injured you are, the **slower you walk and the lower you jump**.
+- Injury **heals slowly**, and faster while you stand still. Resting costs time; racing while hurt costs speed.
+- Hits **knock you back and up**. Get knocked off a ledge and you fall to whatever is below.
 
 ---
 
@@ -29,12 +29,10 @@ The goal is to reach the top while surviving enemy encounters and mastering move
 
 ## 🎯 Features
 
-- Smooth vertical movement and jumping mechanics
-- Basic combat system (attack/hit detection)
-- Enemy AI or obstacles (if implemented)
-- Physics-based platform interactions
-- Responsive browser gameplay
-- Lightweight and runs directly in the browser
+- Frame-rate independent movement, jumping (with double jump) and animation
+- Sword combat: three attacks with wind-up, active frames, reach and knockback
+- Injury system: weaker climbing, slow recovery, faster when resting
+- PixiJS (WebGL) rendering
 
 ---
 
@@ -48,9 +46,9 @@ The goal is to reach the top while surviving enemy encounters and mastering move
 | Jump (double jump) | W | Up arrow |
 | Low / Mid / Overhead attack | X / C / V | I / O / P |
 
-Press **Enter** after a KO for a rematch.
+Press **Enter** after someone reaches the door for a rematch.
 
-- **Goal:** Knock out the other fighter before they knock you out
+- **Goal:** Reach the door at the top before anyone else
 
 ---
 

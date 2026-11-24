@@ -5,7 +5,6 @@ class Sprite {
         this.isAttacking = false
         this.flipX = false //Draw mirrored (for sheets that only exist facing right)
         this.flipShift = 0 //Horizontal nudge so a mirrored character stays where its body is
-        this.holdLastFrame = false //Stop on the final frame instead of looping (death animation)
         this.frames = frames
         this.textures = sheetFrames(imageSrc, frames) //One texture per animation frame
         this.width = this.textures[0].width * scale
@@ -55,7 +54,7 @@ class Sprite {
             if (this.currentFrame < this.frames - 1) {
                 this.currentFrame++
             }
-            else if (!this.holdLastFrame) {
+            else {
                 this.currentFrame = 0
                 if(this.isAttacking) this.isAttacking = false
             }

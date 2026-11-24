@@ -9,8 +9,7 @@ class Player extends Sprite {
         this.frames = frames
         this.facingLeft = facingLeft
         this.jumps = 2
-        this.health = MAX_HEALTH
-        this.isDead = false
+        this.injury = 0 //0 = fresh; rises when hit (see MAX_INJURY)
         this.hitTimer = 0 //Seconds of hit-stun left
         this.invulnerableTimer = 0 //Seconds of invulnerability left
         this.knockbackDirection = 0 //-1 pushed left, +1 pushed right
@@ -100,6 +99,7 @@ class Player extends Sprite {
     update(dt) {
         this.hitTimer = Math.max(0, this.hitTimer - dt)
         this.invulnerableTimer = Math.max(0, this.invulnerableTimer - dt)
+        this.recoverInjury(dt)
         this.updateFrames(dt)
         this.updateHitbox()
         this.updateCameraBox()
@@ -110,6 +110,18 @@ class Player extends Sprite {
         this.applyGravity(dt)
         this.updateHitbox()
         this.checkForVerticalCollisions()
+    }
+
+    /**
+     * Heals injury over time. Faster while resting (standing still on the ground, not attacking);
+     * not at all while stunned. Velocities here are still last frame's, i.e. what the player was just doing.
+     * @param {Number} dt - Seconds elapsed since the previous frame
+     */
+    recoverInjury(dt) {
+        if (this.hitTimer > 0 || match.over) return
+        const resting = this.velocity.x === 0 && this.velocity.y === 0 && !this.isAttacking
+        const rate = RECOVERY_RATE * (resting ? RESTING_RECOVERY_MULTIPLIER : 1)
+        this.injury = Math.max(0, this.injury - rate * dt)
     }
 
     updateHitbox(){
@@ -205,9 +217,24 @@ class Player extends Sprite {
         super.draw()
     }
 
+    /** Injury as a fraction: 0 = fresh, 1 = maximum injury. */
+    get injuryRatio() {
+        return this.injury / MAX_INJURY
+    }
+
+    /** Multiplier on walking speed: 1 when fresh, INJURY_SPEED_FLOOR at maximum injury. */
+    get speedMultiplier() {
+        return 1 - (1 - INJURY_SPEED_FLOOR) * this.injuryRatio
+    }
+
+    /** Multiplier on jump take-off speed: 1 when fresh, INJURY_JUMP_FLOOR at maximum injury. */
+    get jumpMultiplier() {
+        return 1 - (1 - INJURY_JUMP_FLOOR) * this.injuryRatio
+    }
+
     /** True when the player is free to start a jump or attack. */
     canAct() {
-        return !this.isDead && this.hitTimer <= 0 && !match.over
+        return this.hitTimer <= 0 && !match.over
     }
 
     /** True while the current attack's sword is able to hurt (an active frame, and not yet landed). */
@@ -237,12 +264,13 @@ class Player extends Sprite {
     }
 
     /**
-     * Applies a hit: damage, sound, interrupts any attack, and either stuns or kills.
-     * @param {Number} damage - Health to remove
+     * Applies a hit: adds injury, plays sounds, interrupts any attack and stuns for a moment.
+     * There is no death: injury only makes the player weaker.
+     * @param {Number} injury - How much injury the hit adds
      * @param {Player} attacker - Who hit us (decides the knockback direction)
      */
-    takeHit(damage, attacker) {
-        this.health = Math.max(0, this.health - damage)
+    takeHit(injury, attacker) {
+        this.injury = Math.min(MAX_INJURY, this.injury + injury)
         this.isAttacking = false
         this.currentAttack = null
 
@@ -251,31 +279,24 @@ class Player extends Sprite {
         this.knockbackDirection = attackerCentre < ourCentre ? 1 : -1
         this.facingLeft = this.knockbackDirection > 0 //Pushed away from the attacker, so we face them
 
-        this.sounds.hit.currentTime = 0
-        this.sounds.hit.play()
-        if (this.health === 0) {
-            this.isDead = true
-            this.holdLastFrame = true
-            this.sounds.death.currentTime = 0
-            this.sounds.death.play()
-        } else {
-            this.hitTimer = HIT_STUN
-            this.invulnerableTimer = INVULNERABLE_TIME
-            this.sounds.grunt.currentTime = 0
-            this.sounds.grunt.play()
+        this.hitTimer = HIT_STUN
+        this.invulnerableTimer = INVULNERABLE_TIME
+        this.velocity.y = -KNOCKBACK_POP //Launch upwards; gravity brings them back down, maybe onto a lower platform
+        this.collidedVertically = false
+        for (const sound of [this.sounds.hit, this.sounds.grunt]) {
+            sound.currentTime = 0
+            sound.play()
         }
     }
 
-    /** Puts the player back at their spawn point with full health, ready for a new round. */
+    /** Puts the player back at their spawn point fully recovered, ready for a new round. */
     reset() {
         this.position.x = this.spawn.x
         this.position.y = this.spawn.y
         this.velocity.x = 0
         this.velocity.y = 0
         this.facingLeft = this.spawn.facingLeft
-        this.health = MAX_HEALTH
-        this.isDead = false
-        this.holdLastFrame = false
+        this.injury = 0
         this.hitTimer = 0
         this.invulnerableTimer = 0
         this.isAttacking = false

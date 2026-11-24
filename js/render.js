@@ -1,12 +1,12 @@
 // ---- Rendering: everything that touches PixiJS lives here or in the classes' draw() methods ----
-// Game logic never draws directly; it updates plain state (positions, frames, health)
+// Game logic never draws directly; it updates plain state (positions, frames, injury)
 // and Pixi display objects are synced from that state once per frame.
 
 const SCALE = 4 //The pixel art is drawn at 4x
 
 const app = new PIXI.Application()   //Created here, initialised asynchronously by initRenderer()
 const world = new PIXI.Container()   //Everything in the level: moved by the camera and scaled by SCALE
-const hudLayer = new PIXI.Container() //Screen-space overlay (health bars, banners): ignores the camera
+const hudLayer = new PIXI.Container() //Screen-space overlay (injury bars, banners): ignores the camera
 world.scale.set(SCALE)
 
 /**

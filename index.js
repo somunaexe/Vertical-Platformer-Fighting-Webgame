@@ -51,6 +51,7 @@ platformCollisions2D.forEach((row, y) => {
 
 //Created in startGame() once Pixi and the textures are ready
 let background
+let door
 let player1
 let player2
 
@@ -112,7 +113,7 @@ function createWarriorSounds() {
 /**
  * Creates a warrior at the given spawn point.
  * @param {Object} options
- * @param {String} options.name - Shown on the health bar
+ * @param {String} options.name - Shown above the injury bar
  * @param {Number} options.x - Spawn x position
  * @param {Number} options.y - Spawn y position
  * @param {Boolean} options.facingLeft - Which way the warrior starts facing
@@ -140,7 +141,7 @@ const camera = {
     position: {...cameraStart},
 }
 
-/** Starts a fresh round: full health, spawn positions, camera back at the start. */
+/** Starts a fresh round: no injuries, spawn positions, camera back at the start. */
 function resetMatch() {
     match.over = false
     match.winner = null
@@ -171,12 +172,6 @@ function runPlayerAnimation(player, keys, dt) {
     if (player.velocity.y < 0) player.panCameraToDown(camera, dt) //Pan the camera down if the player is exceeding the top boundary
     else if (player.velocity.y > 0) player.panCameraToUp(camera, app.screen, dt) //Pan the camera up if the player is exceeding the bottom boundary
 
-    //Dead: stay down on the last frame of the death animation
-    if (player.isDead) {
-        player.switchSprite('death')
-        return
-    }
-
     //Stunned: no control, just the hit animation while being pushed back
     if (player.hitTimer > 0) {
         player.velocity.x = player.knockbackSpeed
@@ -191,13 +186,13 @@ function runPlayerAnimation(player, keys, dt) {
     if (player.isAttacking) return
 
     if (input.d.pressed) {
-        player.velocity.x = MOVE_SPEED //Move the player right (pixels per second)
+        player.velocity.x = MOVE_SPEED * player.speedMultiplier //Move the player right (pixels per second)
         player.facingLeft = false //Set the player's facing direction
         player.switchSprite('run') //Switch to the run animation
         player.panCameraToLeft(app.screen, camera, dt) //Pan the camera to the left if the player is exceeding the right boundary
     }
     else if (input.a.pressed) {
-        player.velocity.x = -MOVE_SPEED //Move the player left (pixels per second)
+        player.velocity.x = -MOVE_SPEED * player.speedMultiplier //Move the player left (pixels per second)
         player.facingLeft = true //Set the player's facing direction
         player.switchSprite('runLeft') //Switch to the runLeft animation
         player.panCameraToRight(camera, dt) //Pan the camera to the right if the player is exceeding the left boundary
@@ -231,6 +226,7 @@ function animate(timestamp) {
     runPlayerAnimation(player1, player1Keys, dt)
     runPlayerAnimation(player2, player2Keys, dt)
     resolveCombat(player1, player2)
+    checkDoorWin([player1, player2], door)
 
     updateHud(player1, player2)
     app.render() //One paint per game frame, after all state is updated
@@ -247,6 +243,8 @@ async function startGame() {
 
     background = new Sprite({imageSrc: backgroundSrc, position: {x: 0, y: 0}})
     background.draw() //Static: positioned once, never animated
+    //The door sits on the highest platform of the map (platform tiles x 12-14, y = 4 tiles = 64px)
+    door = new Door({position: {x: 12 * 16 + 12, y: 4 * 16 - 36}})
     player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
     player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
 
