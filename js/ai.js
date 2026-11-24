@@ -120,16 +120,34 @@ function seededRandom(seed) {
 }
 
 // ---- Difficulty ----
+// Every number that makes the AI easier or harder is here. Each level is a set of the same knobs:
+//   thinkInterval      seconds between decisions: its reaction time
+//   engageRange        fights a rival on its own level within this many px sideways
+//   leaveAloneAbove    ...but leaves a rival this injured behind to race on (unless they are attacking it)
+//   strikeDistance     swings once the rival is this close (px between body centres); the sword reaches about 38
+//   attackChance       chance to swing at each decision once in range and off cooldown
+//   cooldown           [min, max] seconds between swings
+//   respectInvulnerability   doesn't waste swings on a rival who was just hit
+//   dodgeChance        chance to jump back from a slow attack (low or overhead)
+//   hesitate / pause   chance per decision to stop and dither while climbing, and for how long [min, max] seconds
+//   restAbove          when this injured and no rival is near, stands still to heal (resting heals 2.5x faster)
 const AI_LEVELS = {
+    // Stands still and never acts: for practising attacks and combos
+    dummy: {acts: false},
+    easy: {
+        acts: true, thinkInterval: 0.3, engageRange: 80, leaveAloneAbove: 40, strikeDistance: 30,
+        attackChance: 0.35, cooldown: [1.4, 2.4], respectInvulnerability: false, dodgeChance: 0,
+        hesitate: 0.6, pause: [0.8, 2.2], restAbove: Infinity,
+    },
     normal: {
-        thinkInterval: 0.12,        //Seconds between decisions: its "reaction time"
-        engageRange: 110,           //Fights a rival on its own level within this many px sideways
-        leaveAloneAbove: 60,        //...but leaves a rival this injured behind to race on (unless they are attacking it)
-        strikeDistance: 32,         //Swings once the rival is this close (px between body centres): the sword reaches about 38
-        attackChance: 0.6,          //Chance to swing at each decision once in range and off cooldown
-        cooldown: [0.6, 1.2],       //Seconds between swings (random within)
-        respectInvulnerability: true, //Doesn't waste swings on a rival who was just hit
-        dodgeChance: 0.15,          //Chance to jump away from a slow attack (low or overhead)
+        acts: true, thinkInterval: 0.12, engageRange: 110, leaveAloneAbove: 60, strikeDistance: 32,
+        attackChance: 0.6, cooldown: [0.6, 1.2], respectInvulnerability: true, dodgeChance: 0.15,
+        hesitate: 0.2, pause: [0.3, 0.9], restAbove: 80,
+    },
+    hard: {
+        acts: true, thinkInterval: 0.06, engageRange: 140, leaveAloneAbove: 75, strikeDistance: 34,
+        attackChance: 0.9, cooldown: [0.35, 0.7], respectInvulnerability: true, dodgeChance: 0.4,
+        hesitate: 0, pause: [0, 0], restAbove: 60,
     },
 }
 
@@ -149,9 +167,10 @@ const AI_JUMP_ALIGN = 20     //The AI jumps once it is this close (px) to the sp
  */
 function createAiController({slot, level = 'normal', seed = 1}) {
     const config = AI_LEVELS[level]
+    if (!config) throw new Error(`Unknown AI level: ${level}`)
     const random = seededRandom(seed)
     const graph = getPlatformGraph()
-    const memory = {thinkTimer: 0, goal: null, stuckFor: 0, lastRun: null, cooldown: 0}
+    const memory = {thinkTimer: 0, goal: null, stuckFor: 0, lastRun: null, cooldown: 0, pausedFor: 0}
 
     const keys = () => playerKeys[slot]
     const hold = direction => { keys().a.pressed = direction < 0; keys().d.pressed = direction > 0 } //-1 left, 0 none, +1 right
@@ -223,15 +242,19 @@ function createAiController({slot, level = 'normal', seed = 1}) {
         return 'mid'
     }
 
-    /** Faces, approaches and attacks a rival. Returns true if it fought (so it should not climb this decision). */
-    function fight(me, body) {
+    /**
+     * Faces, approaches and attacks a rival. Returns true if it fought (so it should not climb this step).
+     * Turning and walking happen every step; the CHOICES (dodge? swing now?) only on a decision step,
+     * so the AI's reaction time sets how often it acts, not how well it walks.
+     */
+    function fight(me, body, decide) {
         const rival = findRival(me, body)
         if (!rival) return false
         const towards = Math.sign(rival.dx) || 1
 
         // A slow attack (low, overhead) has a visible wind-up: sometimes jump out of the way
         const theirs = rival.player
-        if (theirs.isAttacking && theirs.currentAttack !== 'mid' && Math.abs(rival.dx) < 50 && random() < config.dodgeChance) {
+        if (decide && theirs.isAttacking && theirs.currentAttack !== 'mid' && Math.abs(rival.dx) < 50 && random() < config.dodgeChance) {
             hold(-towards) //Jump back, away from the swing
             jump(me)
             return true
@@ -247,28 +270,48 @@ function createAiController({slot, level = 'normal', seed = 1}) {
         }
         hold(0) //In range: stand and fight
         const wasted = config.respectInvulnerability && theirs.invulnerableTimer > 0.1
-        if (memory.cooldown <= 0 && !me.isAttacking && !wasted && random() < config.attackChance) {
+        if (decide && memory.cooldown <= 0 && !me.isAttacking && !wasted && random() < config.attackChance) {
             attack(me, chooseAttack(theirs))
             memory.cooldown = config.cooldown[0] + random() * (config.cooldown[1] - config.cooldown[0])
         }
         return true
     }
 
-    /** One decision: called a few times a second while on the ground. */
-    function think(me) {
+    /** Anyone (on any level) close enough to be a threat soon? */
+    function rivalNearby(me, body) {
+        return activePlayers().some(other => other !== me && Math.abs(bodyOf(other).cx - body.cx) < 200 && Math.abs(bodyOf(other).feet - body.feet) < 60)
+    }
+
+    /**
+     * What to do this step while on the ground. Runs every step; `decide` is true only on the AI's
+     * "reaction time" ticks, when it makes its choices (fight? rest? dither?).
+     */
+    function think(me, decide, dt) {
         const body = bodyOf(me)
-        if (fight(me, body)) return
+        if (fight(me, body, decide)) return
         const run = currentRun(me, body)
         if (!run) return
+
+        // Badly hurt and nobody about: stand still and heal (injury slows walking and weakens jumps)
+        if (me.injury >= config.restAbove && !rivalNearby(me, body)) return hold(0)
+        // Dithering: an easier AI sometimes stops for a moment instead of pressing on
+        if (memory.pausedFor > 0) {
+            memory.pausedFor -= dt
+            return hold(0)
+        }
+        if (decide && random() < config.hesitate) {
+            memory.pausedFor = config.pause[0] + random() * (config.pause[1] - config.pause[0])
+            return hold(0)
+        }
         // Stuck on the same platform for a long time (bad luck, an odd landing): hop and walk to shake things up
-        memory.stuckFor = run === memory.lastRun ? memory.stuckFor + config.thinkInterval : 0
+        memory.stuckFor = run === memory.lastRun ? memory.stuckFor + dt : 0
         memory.lastRun = run
         if (memory.stuckFor > 5) {
             memory.stuckFor = 0
             hold(random() < 0.5 ? -1 : 1)
             return jump(me)
         }
-        climb(me, body, run)
+        climb(me, body, run) //Walking onto the right spot and the moment to jump: every step, never "slow reflexes"
     }
 
     return {
@@ -278,20 +321,20 @@ function createAiController({slot, level = 'normal', seed = 1}) {
         update(dt) {
             const me = players[slot]
             if (!me || me.departed) return
-            if (match.over || !me.canAct()) return hold(0)
+            if (!config.acts || match.over || !me.canAct()) return hold(0)
             const body = bodyOf(me)
             if (!currentRun(me, body)) return steerAirborne(me, body) //In the air: fine control, every step
             memory.cooldown -= dt
             memory.thinkTimer -= dt
-            if (memory.thinkTimer > 0) return
-            memory.thinkTimer += config.thinkInterval
-            think(me)
+            const decide = memory.thinkTimer <= 0 //Is this one of the AI's reaction-time ticks?
+            if (decide) memory.thinkTimer += config.thinkInterval
+            think(me, decide, dt)
         },
 
         /** Back to a clean slate (a new round). */
         reset() {
             hold(0)
-            Object.assign(memory, {thinkTimer: 0, goal: null, stuckFor: 0, lastRun: null, cooldown: 0})
+            Object.assign(memory, {thinkTimer: 0, goal: null, stuckFor: 0, lastRun: null, cooldown: 0, pausedFor: 0})
         },
     }
 }

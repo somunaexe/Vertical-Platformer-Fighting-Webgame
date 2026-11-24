@@ -107,9 +107,9 @@ test('an AI ignores a rival on another level and keeps climbing', () => {
     const sim = createSim(2)
     sim.addAi(1, 'normal', 1)
     sim.run('players[0].position.y = -300; players[0].velocity.y = 0') //Far above
-    const swings = countEvents(sim, 6, 'attack', 1)
+    const swings = countEvents(sim, 12, 'attack', 1) //A fair while: it may dither for a few seconds before setting off
     assert.strictEqual(swings, 0)
-    assert.ok(JSON.parse(sim.run('JSON.stringify(raceProgress(players[1]))')) > 0.05, 'it climbed instead')
+    assert.ok(JSON.parse(sim.run('JSON.stringify(raceProgress(players[1]))')) > 0.1, 'it climbed instead')
 })
 
 test('the AI does not swing once the round is over', () => {
@@ -130,4 +130,68 @@ test('four AIs racing and brawling in one room play to a finish without trouble'
     const result = playUntilOver(sim, 120)
     assert.ok(result.seconds !== null, 'someone should reach the door')
     assert.ok(result.winner >= 0 && result.winner < 4)
+})
+
+// ---- Difficulty levels ----
+
+/** A race with the other player removed, so only the AI's own speed matters. Returns seconds to the door. */
+function raceAlone(level, seed) {
+    const sim = createSim(2)
+    sim.depart(0)
+    sim.addAi(1, level, seed)
+    return playUntilOver(sim, 150).seconds
+}
+
+/** How many times the AI swings in its first 5 seconds beside a player who just stands there. */
+function swingsInFirstFiveSeconds(level) {
+    const sim = createSim(2)
+    sim.addAi(1, level, 1)
+    for (let i = 0; i < 90; i++) sim.step(DT)
+    sim.run('players[1].position.x = players[0].position.x + 60; players[1].facingLeft = true')
+    return countEvents(sim, 5, 'attack', 1)
+}
+
+test('the levels are dummy, easy, normal and hard, and an unknown one is refused', () => {
+    const sim = createSim(2)
+    assert.deepStrictEqual(JSON.parse(sim.run('JSON.stringify(Object.keys(AI_LEVELS))')), ['dummy', 'easy', 'normal', 'hard'])
+    assert.throws(() => sim.addAi(1, 'impossible', 1), /Unknown AI level/)
+})
+
+test('the dummy stands perfectly still and never swings, even with a rival beside it', () => {
+    const sim = createSim(2)
+    sim.addAi(1, 'dummy', 1)
+    for (let i = 0; i < 90; i++) sim.step(DT)
+    sim.run('players[0].position.x = players[1].position.x - 30; players[0].facingLeft = false')
+    const start = sim.snapshot().p[1]
+    assert.strictEqual(countEvents(sim, 10, 'attack', 1), 0)
+    const end = sim.snapshot().p[1]
+    assert.deepStrictEqual([end.x, end.y], [start.x, start.y], 'it never moved')
+})
+
+test('harder levels race faster: easy is clearly slower than normal, and normal than hard', () => {
+    const easy = raceAlone('easy', 3), normal = raceAlone('normal', 3), hard = raceAlone('hard', 3)
+    assert.ok(easy && normal && hard, `all should finish: ${easy}, ${normal}, ${hard}`)
+    assert.ok(easy > normal * 1.3, `easy ${easy}s should be much slower than normal ${normal}s`)
+    assert.ok(normal > hard * 1.1, `normal ${normal}s should be slower than hard ${hard}s`)
+    assert.ok(hard >= 28, `hard ${hard}s: faster than the physics allow would mean cheating`)
+})
+
+test('harder levels fight more: easy swings least, hard most', () => {
+    const easy = swingsInFirstFiveSeconds('easy'), normal = swingsInFirstFiveSeconds('normal'), hard = swingsInFirstFiveSeconds('hard')
+    assert.ok(easy < normal && normal < hard, `swings in 5s: easy ${easy}, normal ${normal}, hard ${hard}`)
+})
+
+test('a badly hurt AI with nobody near stops to heal, then carries on', () => {
+    const sim = createSim(2)
+    sim.depart(0) //Nobody around
+    sim.addAi(1, 'hard', 1)
+    for (let i = 0; i < 90; i++) sim.step(DT)
+    sim.run('players[1].injury = 90')
+    const before = sim.snapshot().p[1]
+    for (let i = 0; i < 60 * 3; i++) sim.step(DT)
+    const resting = sim.snapshot().p[1]
+    assert.ok(Math.abs(resting.x - before.x) < 5 && Math.abs(resting.y - before.y) < 1, `it stood (almost) still: moved ${resting.x - before.x}px sideways`)
+    assert.ok(resting.inj < before.inj - 8, `injury ${before.inj} -> ${resting.inj}: it healed while resting`)
+    for (let i = 0; i < 60 * 15; i++) sim.step(DT)
+    assert.ok(sim.snapshot().p[1].y < before.y - 60, 'once healed it climbed on')
 })
