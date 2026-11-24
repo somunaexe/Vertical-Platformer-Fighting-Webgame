@@ -3,7 +3,7 @@
 
 const {Room} = require('./room')
 
-const MAX_ROOMS = 200 //A server-wide cap so nobody can exhaust memory by opening rooms
+const MAX_ROOMS = 200 //Default server-wide cap so nobody can exhaust the server by opening rooms (server.js can override it)
 // Room codes avoid look-alike characters (no 0/O, 1/I) so they are easy to read aloud
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 4
@@ -11,10 +11,13 @@ const CODE_PATTERN = new RegExp(`^[${CODE_ALPHABET}]{${CODE_LENGTH}}$`)
 
 class Lobby {
     /**
-     * @param {Object} [options] - Passed on to every Room (timer, now), for tests
+     * @param {Object} [options]
+     * @param {Number} [options.maxRooms=200] - Rooms that may exist at once
+     * @param {*} [options.*] - Everything else (timer, now) is passed on to every Room, for tests
      */
-    constructor(options = {}) {
-        this.options = options
+    constructor({maxRooms = MAX_ROOMS, ...roomOptions} = {}) {
+        this.maxRooms = maxRooms
+        this.options = roomOptions
         this.rooms = new Map() //code -> Room
     }
 
@@ -28,7 +31,7 @@ class Lobby {
     }
 
     createRoom(isPublic) {
-        if (this.rooms.size >= MAX_ROOMS) return null
+        if (this.rooms.size >= this.maxRooms) return null
         const room = new Room(this.newCode(), {...this.options, isPublic, onEmpty: closed => this.rooms.delete(closed.code)})
         this.rooms.set(room.code, room)
         return room
@@ -69,6 +72,11 @@ class Lobby {
         }
         if (!room) return client.send(JSON.stringify({t: 'error', reason: 'server-busy'}))
         if (!room.join(client)) client.send(JSON.stringify({t: 'error', reason: 'full'}))
+    }
+
+    /** Tells everyone in every room the server is about to restart, so they see why instead of just losing the connection. */
+    announceShutdown() {
+        for (const room of this.rooms.values()) room.broadcast(JSON.stringify({t: 'ended', reason: 'restarting'}))
     }
 
     /** Takes a client out of whatever room they are in (they left or disconnected). */

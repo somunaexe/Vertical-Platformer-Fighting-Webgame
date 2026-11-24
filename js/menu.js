@@ -9,6 +9,7 @@ const MENU_MESSAGES = {
     'server-busy': 'The server is full right now. Try again in a moment.',
     'bad-request': 'Something went wrong. Try again.',
     'all-left': 'Everyone else left the race.',
+    'restarting': 'The server is restarting. Please try again in a moment.',
     'unreachable': 'Could not reach the game server. Online play needs the Node server (npm start).',
     'disconnected': 'Lost the connection to the server.',
 }

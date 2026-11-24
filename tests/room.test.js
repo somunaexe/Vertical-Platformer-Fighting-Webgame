@@ -209,3 +209,19 @@ test('garbage from clients never throws and never changes anything', () => {
     const snap = host.last('snap').s
     assert.ok(snap.p.every(p => p.inj === 0 && p.anim === 'idle' || p.anim === 'idleLeft'), 'nobody did anything')
 })
+
+test('a lobby with a room cap refuses to create more rooms, and tells the player', () => {
+    const clock = {t: 1000}
+    const lobby = new Lobby({maxRooms: 1, timer: false, now: () => clock.t})
+    const first = fakeClient(), second = fakeClient()
+    lobby.handle(first, {t: 'join', mode: 'create'})
+    lobby.handle(second, {t: 'join', mode: 'create'})
+    assert.ok(first.room)
+    assert.strictEqual(second.room, null)
+    assert.strictEqual(second.last('error').reason, 'server-busy')
+    // Joining the EXISTING room by code still works: the cap is on creating rooms
+    const code = first.last('lobby').code
+    const third = fakeClient()
+    lobby.handle(third, {t: 'join', mode: 'code', code})
+    assert.strictEqual(third.room, first.room)
+})
