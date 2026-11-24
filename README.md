@@ -64,8 +64,9 @@ because the image loader needs real HTTP.
 ```bash
 npm install     # installs ws, the only dependency (the tests pass on Node 18, 20 and 22)
 npm start       # http://localhost:3000   (set PORT to change it)
-npm test        # 66 automated tests: game rules, collision, level art, the AI, rooms and lobby, the real server
+npm test        # 78 automated tests: game rules, collision, level art, the AI, rooms and lobby, the real server, the itch.io build
 npm run export-art   # only after editing the Tiled map: regenerates js/data/art.js
+npm run build:itch -- --server=wss://YOUR-SERVER   # makes dist/swordfighter-itch.zip (see Deploying)
 ```
 
 `npm start` runs the game server, which also serves the page and runs online play. For **local and training play only**
@@ -195,6 +196,28 @@ this), so where its menus differ, follow Railway's docs. The game itself needs n
 5. Optionally set the health check path to `/healthz`, and keep the service at **one replica**.
 6. Open the URL on two devices (say a laptop and a phone) and try **Quick match**.
 
+### On itch.io (the page there, the game server on Railway)
+**itch.io can only host static files, so it cannot run the Node server.** That is why **Quick match** and the private rooms
+say "Could not reach the game server" on an itch.io page that was uploaded as it is: the page tried to connect to itch.io's
+own address. **Training and Play locally work there as they are.** For online play the page needs to be pointed at your server:
+1. Deploy the server (for example on Railway, above) and note its address, such as `your-app.up.railway.app`.
+2. Build the upload, giving the server's address with `wss://` in front (not `https://`):
+   ```bash
+   npm run build:itch -- --server=wss://your-app.up.railway.app
+   ```
+   This writes `dist/swordfighter-itch.zip`: only the files the game needs, with `index.html` at the top level of the zip, and
+   the address written into the copy of `js/config.js`. (The committed `js/config.js` stays empty, so a normal checkout, and the
+   server serving its own page, are unaffected. You can try `dist/itch/` locally by serving that folder.)
+3. On itch.io create a project of kind **HTML**, upload the zip and tick the box saying it is played in the browser. In the embed
+   options pick a viewport (the game fills whatever size it gets, for example 1280 by 720) and enable the fullscreen button.
+   These menu names are from memory of itch.io's page, so adjust to what you see.
+4. Open the itch.io page on two devices and try **Quick match**.
+
+Notes: the page is HTTPS, so the server address must be `wss://` (browsers block `ws://` from a secure page); Railway's public
+address is HTTPS, so this works. The server accepts connections from any website (there are no accounts), so any copy of the page,
+on itch.io or elsewhere, can play on it. I could not test inside itch.io's own page frame from my environment: I tested the same
+setup with the page on one local address and the server on another.
+
 ### What it costs to run (measured, not guessed)
 Measured on this code in one Node process, with simulated players moving, jumping and attacking about ten times a second each:
 
@@ -261,6 +284,7 @@ Vertical-Platformer-Fighting-Webgame/
 │   ├── classes/      # Sprite, Player, Door, CollisionBlock, AudioSFX
 │   ├── level.js      # Tall level: stacks the map's collision AND art tiles with the same offsets, door position
 │   ├── level-art.js  # Draws the sky, ground, platforms and vines from the Tiled layers
+│   ├── config.js     # GAME_SERVER_URL: where the online server is when the page is hosted elsewhere (itch.io)
 │   ├── debug.js      # ?debug / F2 collision overlay
 │   ├── utils.js      # Collision helpers
 │   ├── bus.js        # GameEvents: the game announces jump/attack/hit/land/win/reset
@@ -281,18 +305,21 @@ Vertical-Platformer-Fighting-Webgame/
 │   ├── sim-api.js    # The doorway into a room's sandbox (input, step, snapshot)
 │   └── stubs.js      # Stand-ins for the browser-only pieces the rules touch
 ├── tools/
-│   └── export-art.js # Tiled map -> js/data/art.js (npm run export-art)
+│   ├── export-art.js # Tiled map -> js/data/art.js (npm run export-art)
+│   └── build-itch.js # Builds dist/swordfighter-itch.zip with the server address baked in (npm run build:itch)
 ├── tests/            # node --test
 │   ├── sim.test.js   # The rules, headless (movement, jumps, hits, door, determinism, the AI's level map)
 │   ├── collision.test.js # Landing on platforms at any speed and frame rate, one-way jumps, never falling out of the world
 │   ├── art.test.js   # What you see is what you stand on: art matches collision in every copy; art.js matches the map
+│   ├── config.test.js # Which server address the page connects to
+│   ├── itch.test.js  # The itch.io build: files, baked-in address, a zip other tools can open
 │   ├── ai.test.js    # The computer opponent (climbing, fighting, difficulty levels)
 │   ├── room.test.js  # Lobby and rooms, with fake clients and a fake clock
 │   └── server.test.js# The real server on a real port (files, sockets, limits)
 └── assets/           # audio/ (10 sound files), images/ (warrior sprite sheets), tiled/ (the Tiled map, tileset and scenery images the level is drawn from)
 ```
 
-`npm test` runs all 66 tests. Three of the sound files (`death`, `fall`, `run`) are loaded but not currently played, and `assets/images/background.png` (the original flattened picture of the map) is no longer used by the game: the level is drawn from the Tiled layers instead.
+`npm test` runs all 78 tests. Three of the sound files (`death`, `fall`, `run`) are loaded but not currently played, and `assets/images/background.png` (the original flattened picture of the map) is no longer used by the game: the level is drawn from the Tiled layers instead.
 
 ## ⚠️ Known limits
 
