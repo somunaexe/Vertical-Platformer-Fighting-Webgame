@@ -1,235 +1,28 @@
-//Instantiate the canvas using the canvas html tag and context
-const canvas = document.querySelector("canvas");
-const c = canvas.getContext('2d');
-
-//Set the canvas width and height
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-const gravity = 540; //Downward acceleration in pixels per second squared (was 0.15 per frame at 60 fps)
-
-//Canvas is scaled to fill entire screen. Hence, it's actual width and height are stored in scaledCanvas for calculations
-const scaledCanvas = {
-    width: canvas.width / 4,
-    height: canvas.height / 4
-}
-
-//Set up a 2D array to store the collision tileset data
-const floorCollisions2D = []
-for (let i = 0; i < floorCollisions.length; i+= 36) {
-    floorCollisions2D.push(floorCollisions.slice(i, i + 36))//Each pushed/sliced array represents a row
-}
-
-//Set up collision blocks in the canvas using the collision tileset data
-const collisionBlocks = []
-floorCollisions2D.forEach((row, y) => {
-    row.forEach((symbol, x) => {
-        if (symbol === 202) {
-            collisionBlocks.push(new CollisionBlock({
-                position: {
-                    x: x * 16,
-                    y: y * 16
-                }
-            }))
-        }
-    })
-})
-
-//Set up a 2D array to store the platform collision tileset data
-const platformCollisions2D = []
-for (let i = 0; i < platformCollisions.length; i+= 36) {
-    platformCollisions2D.push(platformCollisions.slice(i, i + 36))
-}
-
-//Set up platform collision blocks in the canvas using the collision tileset data
-const platformBlocks = []
-platformCollisions2D.forEach((row, y) => {
-    row.forEach((symbol, x) => {
-        if (symbol === 202) {
-            platformBlocks.push(new CollisionBlock({
-                position: {
-                    x: x * 16,
-                    y: y * 16
-                },
-                height: 4,
-            }))
-        }
-    })
-})
-
-//Add the background sprite
-const background = new Sprite({
-    imageSrc: "assets/images/background.png",
-    position: {x: 0, y: 0}
-})
-
 //Add the background music
 const bgMusic = new AudioSFX({src: 'assets/audio/bg-music.mp3', volume: 0.5, autoplay: true, loop: true});
 
-/**
- * Builds the animation table for a warrior. Returns a fresh object each call because
- * the Player constructor attaches an Image to every entry, which players must not share.
- * Each entry is [name, spritesheet file, number of frames, frameBuffer (game frames per animation frame)].
- */
-function createWarriorAnimations() {
-    const sheets = [
-        ['idle',           'Idle.png',           8, 3],
-        ['run',            'Run.png',            8, 5],
-        ['jump',           'Jump.png',           2, 5],
-        ['fall',           'Fall.png',           2, 5],
-        ['idleLeft',       'IdleLeft.png',       8, 3],
-        ['runLeft',        'RunLeft.png',        8, 5],
-        ['jumpLeft',       'JumpLeft.png',       2, 5],
-        ['fallLeft',       'FallLeft.png',       2, 5],
-        ['attackLow',      'AttackLow.png',      4, 6],
-        ['attackMid',      'AttackMid.png',      4, 4],
-        ['attackOverhead', 'AttackOverhead.png', 4, 5],
-        ['hit',            'Take Hit.png',       2, 5],
-        ['hitSilhouette',  'HitSilhouette.png',  2, 5],
-        ['death',          'Death.png',          6, 5],
-    ]
-    const animations = {}
-    for (const [name, file, frames, frameBuffer] of sheets) {
-        animations[name] = {imageSrc: `assets/images/warrior/${file}`, frames, frameBuffer}
-    }
-    //Only right-facing sheets exist for these, so they are mirrored when drawn facing left
-    for (const name of ['attackLow', 'attackMid', 'attackOverhead', 'hit', 'hitSilhouette', 'death']) {
-        animations[name].mirrorWhenLeft = true
-    }
-    return animations
-}
-
-/**
- * Builds the sound set for a warrior. Each player needs their own Audio objects,
- * since playing a sound restarts it (shared objects would cut each other off).
- */
-function createWarriorSounds() {
-    const sound = (file, options) => new AudioSFX({src: `assets/audio/${file}`, ...options})
-    return {
-        death: sound('death.mp3'),
-        fall: sound('fall.mp3'),
-        grunt: sound('grunt.mp3'),
-        hit: sound('hit.mp3'),
-        jump: sound('jump.mp3'),
-        lowAttack: sound('low-attack.mp3'),
-        midAttack: sound('mid-attack.mp3'),
-        overheadAttack: sound('overhead-attack.mp3'),
-        run: sound('run.mp3', {loop: true}),
-    }
-}
-
-/**
- * Creates a warrior at the given spawn point.
- * @param {Object} options
- * @param {String} options.name - Shown on the health bar
- * @param {Number} options.x - Spawn x position
- * @param {Number} options.y - Spawn y position
- * @param {Boolean} options.facingLeft - Which way the warrior starts facing
- * @returns {Player}
- */
-function createWarrior({name, x, y, facingLeft}) {
-    return new Player({
-        name,
-        imageSrc: facingLeft ? "assets/images/warrior/IdleLeft.png" : "assets/images/warrior/Idle.png",
-        position: {x, y},
-        velocity: {x: 0, y: 0},
-        collisionBlocks,
-        platformBlocks,
-        frames: 8,
-        facingLeft,
-        animations: createWarriorAnimations(),
-        sounds: createWarriorSounds(),
-    })
-}
-
-const player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
-const player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
-
-const backgroundHeight = 432
-//Camera object for tracking the player
-const cameraStart = {x: 0, y: -backgroundHeight + scaledCanvas.height}
-const camera = {
-    position: {...cameraStart},
-}
-
-/** Starts a fresh round: full health, spawn positions, camera back at the start. */
-function resetMatch() {
-    match.over = false
-    match.winner = null
-    player1.reset()
-    player2.reset()
-    camera.position.x = cameraStart.x
-    camera.position.y = cameraStart.y
-}
+// When a round restarts, the presentation clears its leftovers and the camera jumps back (no glide across the level)
+GameEvents.on('reset', () => {
+    clearEffects()
+    updateCamera(activePlayers(), app.screen, 0, true)
+})
 
 //Timing state for the game loop. Lives outside animate() so it survives between frames
 let lastTimestamp = null //Timestamp (ms) of the previous frame; null until the first frame
 const MAX_DT = 0.05 //Longest time step allowed, in seconds (= 20 frames per second)
-const MOVE_SPEED = 120 //Horizontal speed in pixels per second
-const noKeys = {a: {pressed: false}, d: {pressed: false}} //Stand-in input when controls are locked
 
 /**
- * Updates the player's animation and position based on the given keys
- * @param {Player} player - The player to update
- * @param {Object} keys - An object containing the pressed state of the left and right arrow keys
- * @param {Number} dt - Seconds elapsed since the previous frame
- */
-function runPlayerAnimation(player, keys, dt) {
-    player.checkForHorizontalCanvasCollisions(dt)
-    player.update(dt);
-    player.velocity.x = 0
-
-    //The camera follows vertical movement in every state (jumping, falling, even while stunned)
-    if (player.velocity.y < 0) player.panCameraToDown(camera, dt) //Pan the camera down if the player is exceeding the top boundary
-    else if (player.velocity.y > 0) player.panCameraToUp(camera, canvas, dt) //Pan the camera up if the player is exceeding the bottom boundary
-
-    //Dead: stay down on the last frame of the death animation
-    if (player.isDead) {
-        player.switchSprite('death')
-        return
-    }
-
-    //Stunned: no control, just the hit animation while being pushed back
-    if (player.hitTimer > 0) {
-        player.velocity.x = player.knockbackSpeed
-        player.switchSprite('hit')
-        return
-    }
-
-    //Once the round is over nobody can steer
-    const input = match.over ? noKeys : keys
-
-    //Mid-attack the player is committed: no walking and no animation changes until the swing ends
-    if (player.isAttacking) return
-
-    if (input.d.pressed) {
-        player.velocity.x = MOVE_SPEED //Move the player right (pixels per second)
-        player.facingLeft = false //Set the player's facing direction
-        player.switchSprite('run') //Switch to the run animation
-        player.panCameraToLeft(canvas, camera, dt) //Pan the camera to the left if the player is exceeding the right boundary
-    }
-    else if (input.a.pressed) {
-        player.velocity.x = -MOVE_SPEED //Move the player left (pixels per second)
-        player.facingLeft = true //Set the player's facing direction
-        player.switchSprite('runLeft') //Switch to the runLeft animation
-        player.panCameraToRight(camera, dt) //Pan the camera to the right if the player is exceeding the left boundary
-    }
-    else if (player.velocity.y === 0) {
-        player.switchSprite(player.facingLeft ? 'idleLeft' : 'idle')
-    }
-
-    //Airborne animations, depending on the player's facing direction
-    if (player.velocity.y < 0) player.switchSprite(player.facingLeft ? 'jumpLeft' : 'jump')
-    else if (player.velocity.y > 0) player.switchSprite(player.facingLeft ? 'fallLeft' : 'fall')
-}
-
-/**
- * Continuously animates the game frame by clearing the canvas, updating
- * the background and player animations, and applying camera transformations.
- * Utilizes requestAnimationFrame for smooth rendering.
+ * Runs one browser frame: measures dt, steps the game rules, then has Pixi paint the result.
+ * Re-schedules itself with requestAnimationFrame, so it runs once per monitor refresh.
+ * @param {Number} timestamp - Milliseconds since page load, supplied by requestAnimationFrame
  */
 function animate(timestamp) {
     window.requestAnimationFrame(animate)
+    if (!players.length) { //Between rounds (menu, lobby): nothing to simulate; show the level behind the menu
+        idleCamera(app.screen)
+        app.render()
+        return
+    }
 
     // Seconds since the previous frame. On the very first frame there is no previous
     // timestamp, so dt is 0 (nothing moves yet) instead of NaN.
@@ -237,17 +30,75 @@ function animate(timestamp) {
     const dt = lastTimestamp === null ? 0 : Math.min((timestamp - lastTimestamp) / 1000, MAX_DT)
     lastTimestamp = timestamp
 
-    c.fillStyle = 'white';
-    c.fillRect(0, 0, canvas.width, canvas.height);
-    c.save()
-    c.scale(4, 4)
-    c.translate(camera.position.x, camera.position.y)
-    background.update(dt)
-    runPlayerAnimation(player1, player1Keys, dt)
-    runPlayerAnimation(player2, player2Keys, dt)
-    resolveCombat(player1, player2)
-    c.restore()
+    //Online: show the server's game (a moment ago, blended) BEFORE framing, so the camera sees the puppets where they're drawn
+    if (net.active) renderNetworkState(timestamp)
 
-    drawHud(player1, player2)
+    //Frame everyone. Done before the players move so the sprites and the camera agree this frame
+    //Normally frame everyone; once the race is won, glide in on the winner (nobody is racing any more)
+    const cameraFocus = match.over && match.winner ? [match.winner] : activePlayers()
+    updateCamera(cameraFocus, app.screen, dt)
+
+    if (!net.active) stepGame(dt) //Local play: all the rules live in game.js. Online, the server runs them and snapshots arrive by network
+
+    updateEffects(dt)
+    updateDebugView()
+    updateHud(players)
+    app.render() //One paint per game frame, after all state is updated
 }
-window.requestAnimationFrame(animate)
+
+/**
+ * Starts Pixi, loads every image and builds the level's background. Done once per page.
+ * Everything that needs a texture waits for this, because textures load asynchronously.
+ */
+async function bootRenderer() {
+    const sheets = Object.values(createWarriorAnimations()).map(animation => animation.imageSrc)
+    await initRenderer([...levelArtTextureUrls(), ...sheets])
+    buildLevelArt() //Sky, ground, platforms and vines, drawn from the Tiled map's layers (see js/level-art.js)
+    window.requestAnimationFrame(animate)
+}
+
+/**
+ * Starts a round: creates the door and the players and frames the camera on them.
+ * @param {Number} count - How many players (2 to MAX_PLAYERS)
+ */
+function beginRound(count) {
+    createRoundEntities(count) //The door and the players (see game.js); after the background so they draw on top
+    initEffects() //After the players, so particles draw on top of them
+    attachDebugView() //Collision overlay for ?debug / F2; invisible unless switched on
+    updateCamera(activePlayers(), app.screen, 0, true) //Start already framed, no glide from nowhere
+}
+
+/** Removes the current round's players, door and effects from the scene (before the next round, or when leaving). */
+function teardownRound() {
+    if (!players.length) return
+    clearEffects()
+    detachDebugView()
+    effects.layer.destroy()
+    for (const player of players) player.view.destroy()
+    door.view.destroy()
+    players = []
+    door = undefined
+    aiControllers.length = 0 //Any computer players go with the round
+    training.active = false
+    training.level = null
+    match.over = false
+    match.winner = null
+}
+
+//Normally the menu appears. The address can skip it: ?online, ?online=create or ?room=CODE joins a game server;
+//?debug shows the collision overlay (F2 toggles it); ?local starts a local round, ?training=easy|normal|hard|dummy a round against the computer, ?players=N a local round with N players (2-12; the extras stand still, handy for testing crowds)
+const params = new URLSearchParams(location.search)
+bootRenderer().then(() => {
+    createMenu()
+    if (params.has('room')) return joinOnline({mode: 'code', code: params.get('room')})
+    if (params.has('online')) return joinOnline({mode: params.get('online') === 'create' ? 'create' : 'quick'})
+    if (params.has('training')) {
+        const level = params.get('training')
+        return startTraining(Object.hasOwn(AI_LEVELS, level) ? level : 'normal')
+    }
+    if (params.has('local') || params.has('players')) {
+        const requested = parseInt(params.get('players'), 10)
+        return startLocal(Number.isInteger(requested) ? Math.min(MAX_PLAYERS, Math.max(2, requested)) : 2)
+    }
+    showMainMenu() //Normal start: the menu
+})

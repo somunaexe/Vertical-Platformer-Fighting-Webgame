@@ -2,54 +2,37 @@ class Sprite {
     constructor({imageSrc, position, frames = 1, frameBuffer = 3, scale = 1}) {
         this.position = position
         this.scale = scale
-        this.loaded = false
         this.isAttacking = false
         this.flipX = false //Draw mirrored (for sheets that only exist facing right)
         this.flipShift = 0 //Horizontal nudge so a mirrored character stays where its body is
-        this.holdLastFrame = false //Stop on the final frame instead of looping (death animation)
-        this.image = new Image()
-        this.image.onload = () => {    
-            this.width = (this.image.width / this.frames) * scale
-            this.height = (this.image.height) * scale
-            this.loaded = true
-        }
-        this.image.src = imageSrc
         this.frames = frames
+        this.textures = sheetFrames(imageSrc, frames) //One texture per animation frame
+        this.width = this.textures[0].width * scale
+        this.height = this.textures[0].height * scale
+        this.view = new PIXI.Sprite(this.textures[0]) //The Pixi object that actually gets drawn
+        world.addChild(this.view)
         this.currentFrame = 0
         this.frameBuffer = frameBuffer
         this.elapsedTime = 0 //Seconds spent on the current animation frame
     }
 
+    /**
+     * Copies this sprite's state (frame, position, mirroring) onto its Pixi display object.
+     * Nothing is painted here; Pixi paints everything once per frame in app.render().
+     */
     draw() {
-        if (!this.image) return
-
-        const cropbox = {
-            position: {
-                x: this.currentFrame * (this.image.width / this.frames),
-                y: 0,
-            },
-            width: this.image.width / this.frames,
-            height: this.image.height,
-        }
-
-        c.save()
+        const view = this.view
+        view.texture = this.textures[this.currentFrame]
+        view.y = this.position.y
+        view.scale.y = this.scale
         if (this.flipX) {
-            //Mirror around the sprite's own centre line
-            c.translate(2 * this.position.x + this.width + this.flipShift, 0)
-            c.scale(-1, 1)
+            //A negative x-scale mirrors the sprite to the LEFT of view.x, so start at its right edge
+            view.scale.x = -this.scale
+            view.x = this.position.x + this.width + this.flipShift
+        } else {
+            view.scale.x = this.scale
+            view.x = this.position.x
         }
-        c.drawImage(
-            this.image,
-            cropbox.position.x,
-            cropbox.position.y,
-            cropbox.width,
-            cropbox.height,
-            this.position.x, 
-            this.position.y,
-            this.width,
-            this.height
-        );
-        c.restore()
     }
 
     update(dt){
@@ -71,7 +54,7 @@ class Sprite {
             if (this.currentFrame < this.frames - 1) {
                 this.currentFrame++
             }
-            else if (!this.holdLastFrame) {
+            else {
                 this.currentFrame = 0
                 if(this.isAttacking) this.isAttacking = false
             }

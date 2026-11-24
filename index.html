@@ -3,20 +3,43 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fill the whole screen (including under a notch) and never let the browser zoom the page -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#10202e">
+    <!-- Lets "Add to Home Screen" open the game full screen without browser chrome -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Swordfighter</title>
     <link href="index.css" rel="stylesheet">
 </head>
 <body>
 <canvas></canvas>
+<script src="./js/vendor/pixi.min.js"></script>
+<script src="./js/bus.js"></script>
+<script src="./js/render.js"></script>
+<script src="./js/level.js"></script>
+<script src="./js/level-art.js"></script>
+<script src="./js/camera.js"></script>
 <script src="./js/classes/AudioSFX.js"></script>
 <script src="./js/utils.js"></script>
 <script src="./js/data/collision.js"></script>
+<script src="./js/data/art.js"></script>
 <script src="./js/data/combat.js"></script>
 <script src="./js/classes/CollisionBlock.js"></script>
-<script src="./js/events.js"></script>
+<script src="./js/classes/Door.js"></script>
+<script src="./js/audio.js"></script>
+<script src="./js/effects.js"></script>
 <script src="./js/classes/Sprite.js"></script>
 <script src="./js/classes/Player.js"></script>
+<script src="./js/game.js"></script>
+<script src="./js/net-state.js"></script>
+<script src="./js/ai.js"></script>
+<script src="./js/net.js"></script>
+<script src="./js/events.js"></script>
+<script src="./js/touch.js"></script>
+<script src="./js/debug.js"></script>
+<script src="./js/menu.js"></script>
 <script src="./index.js"></script>
 </body>
 </html>
