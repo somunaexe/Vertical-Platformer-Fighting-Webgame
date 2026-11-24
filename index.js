@@ -41,6 +41,7 @@ function animate(timestamp) {
     if (!net.active) stepGame(dt) //Local play: all the rules live in game.js. Online, the server runs them and snapshots arrive by network
 
     updateEffects(dt)
+    updateDebugView()
     updateHud(players)
     app.render() //One paint per game frame, after all state is updated
 }
@@ -63,6 +64,7 @@ async function bootRenderer() {
 function beginRound(count) {
     createRoundEntities(count) //The door and the players (see game.js); after the background so they draw on top
     initEffects() //After the players, so particles draw on top of them
+    attachDebugView() //Collision overlay for ?debug / F2; invisible unless switched on
     updateCamera(activePlayers(), app.screen, 0, true) //Start already framed, no glide from nowhere
 }
 
@@ -70,6 +72,7 @@ function beginRound(count) {
 function teardownRound() {
     if (!players.length) return
     clearEffects()
+    detachDebugView()
     effects.layer.destroy()
     for (const player of players) player.view.destroy()
     door.view.destroy()
@@ -83,7 +86,7 @@ function teardownRound() {
 }
 
 //Normally the menu appears. The address can skip it: ?online, ?online=create or ?room=CODE joins a game server;
-//?local starts a local round, ?training=easy|normal|hard|dummy a round against the computer, ?players=N a local round with N players (2-12; the extras stand still, handy for testing crowds)
+//?debug shows the collision overlay (F2 toggles it); ?local starts a local round, ?training=easy|normal|hard|dummy a round against the computer, ?players=N a local round with N players (2-12; the extras stand still, handy for testing crowds)
 const params = new URLSearchParams(location.search)
 bootRenderer().then(() => {
     createMenu()
