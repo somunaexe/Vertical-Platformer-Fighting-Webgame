@@ -40,7 +40,7 @@ function createSim(playerCount) {
     for (const script of scripts) script.runInContext(context)
 
     const api = vm.runInContext(
-        '({simStart, simInput, simStep, simSnapshot, simDrainEvents, simDepart, simRematch, simMatchState})',
+        '({simStart, simInput, simStep, simSnapshot, simDrainEvents, simDepart, simRematch, simMatchState, simAddAi})',
         context,
     )
     api.simStart(playerCount)
@@ -54,6 +54,7 @@ function createSim(playerCount) {
         drainEvents: () => JSON.parse(api.simDrainEvents()),
         depart: slot => api.simDepart(slot),
         rematch: () => api.simRematch(),
+        addAi: (slot, level, seed) => api.simAddAi(slot, level, seed),
         matchState: () => JSON.parse(api.simMatchState()),
         /** Runs a snippet inside the room's sandbox. For tests only. */
         run: code => vm.runInContext(code, context),
