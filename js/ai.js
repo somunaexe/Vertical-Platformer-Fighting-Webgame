@@ -121,8 +121,20 @@ function seededRandom(seed) {
 
 // ---- Difficulty ----
 const AI_LEVELS = {
-    normal: {thinkInterval: 0.12},
+    normal: {
+        thinkInterval: 0.12,        //Seconds between decisions: its "reaction time"
+        engageRange: 110,           //Fights a rival on its own level within this many px sideways
+        leaveAloneAbove: 60,        //...but leaves a rival this injured behind to race on (unless they are attacking it)
+        strikeDistance: 32,         //Swings once the rival is this close (px between body centres): the sword reaches about 38
+        attackChance: 0.6,          //Chance to swing at each decision once in range and off cooldown
+        cooldown: [0.6, 1.2],       //Seconds between swings (random within)
+        respectInvulnerability: true, //Doesn't waste swings on a rival who was just hit
+        dodgeChance: 0.15,          //Chance to jump away from a slow attack (low or overhead)
+    },
 }
+
+const AI_SAME_LEVEL = 28     //Rivals whose feet are within this many px of its own count as "on the same level"
+const AI_ATTACK_WEIGHTS = [['mid', 0.5], ['low', 0.3], ['overhead', 0.2]] //How often it picks each attack
 
 const AI_JUMP_ALIGN = 20     //The AI jumps once it is this close (px) to the spot under its next platform
 
@@ -139,7 +151,7 @@ function createAiController({slot, level = 'normal', seed = 1}) {
     const config = AI_LEVELS[level]
     const random = seededRandom(seed)
     const graph = getPlatformGraph()
-    const memory = {thinkTimer: 0, goal: null, stuckFor: 0, lastRun: null}
+    const memory = {thinkTimer: 0, goal: null, stuckFor: 0, lastRun: null, cooldown: 0}
 
     const keys = () => playerKeys[slot]
     const hold = direction => { keys().a.pressed = direction < 0; keys().d.pressed = direction > 0 } //-1 left, 0 none, +1 right
@@ -185,9 +197,67 @@ function createAiController({slot, level = 'normal', seed = 1}) {
         }
     }
 
+    /** The closest rival on the same level within range, or null. */
+    function findRival(me, body) {
+        let best = null
+        for (const other of activePlayers()) {
+            if (other === me) continue
+            const rival = bodyOf(other)
+            const dx = rival.cx - body.cx
+            if (Math.abs(rival.feet - body.feet) > AI_SAME_LEVEL || Math.abs(dx) > config.engageRange) continue
+            //This is a race: once a rival is hurt badly enough, running for the door beats beating them up
+            if (other.injury >= config.leaveAloneAbove && !other.isAttacking) continue
+            if (!best || Math.abs(dx) < Math.abs(best.dx)) best = {player: other, dx}
+        }
+        return best
+    }
+
+    /** Picks an attack: overhead against someone in the air, otherwise a weighted random choice. */
+    function chooseAttack(rival) {
+        if (rival.velocity.y !== 0) return 'overhead' //Its box reaches above the head
+        let roll = random()
+        for (const [type, weight] of AI_ATTACK_WEIGHTS) {
+            roll -= weight
+            if (roll < 0) return type
+        }
+        return 'mid'
+    }
+
+    /** Faces, approaches and attacks a rival. Returns true if it fought (so it should not climb this decision). */
+    function fight(me, body) {
+        const rival = findRival(me, body)
+        if (!rival) return false
+        const towards = Math.sign(rival.dx) || 1
+
+        // A slow attack (low, overhead) has a visible wind-up: sometimes jump out of the way
+        const theirs = rival.player
+        if (theirs.isAttacking && theirs.currentAttack !== 'mid' && Math.abs(rival.dx) < 50 && random() < config.dodgeChance) {
+            hold(-towards) //Jump back, away from the swing
+            jump(me)
+            return true
+        }
+        //Facing only changes while walking, so a step towards them turns the AI around
+        if (me.facingLeft !== (towards < 0)) {
+            hold(towards)
+            return true
+        }
+        if (Math.abs(rival.dx) > config.strikeDistance) { //Close the distance
+            hold(towards)
+            return true
+        }
+        hold(0) //In range: stand and fight
+        const wasted = config.respectInvulnerability && theirs.invulnerableTimer > 0.1
+        if (memory.cooldown <= 0 && !me.isAttacking && !wasted && random() < config.attackChance) {
+            attack(me, chooseAttack(theirs))
+            memory.cooldown = config.cooldown[0] + random() * (config.cooldown[1] - config.cooldown[0])
+        }
+        return true
+    }
+
     /** One decision: called a few times a second while on the ground. */
     function think(me) {
         const body = bodyOf(me)
+        if (fight(me, body)) return
         const run = currentRun(me, body)
         if (!run) return
         // Stuck on the same platform for a long time (bad luck, an odd landing): hop and walk to shake things up
@@ -211,6 +281,7 @@ function createAiController({slot, level = 'normal', seed = 1}) {
             if (match.over || !me.canAct()) return hold(0)
             const body = bodyOf(me)
             if (!currentRun(me, body)) return steerAirborne(me, body) //In the air: fine control, every step
+            memory.cooldown -= dt
             memory.thinkTimer -= dt
             if (memory.thinkTimer > 0) return
             memory.thinkTimer += config.thinkInterval
@@ -220,7 +291,7 @@ function createAiController({slot, level = 'normal', seed = 1}) {
         /** Back to a clean slate (a new round). */
         reset() {
             hold(0)
-            Object.assign(memory, {thinkTimer: 0, goal: null, stuckFor: 0, lastRun: null})
+            Object.assign(memory, {thinkTimer: 0, goal: null, stuckFor: 0, lastRun: null, cooldown: 0})
         },
     }
 }
