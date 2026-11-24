@@ -1,59 +1,14 @@
 const gravity = 540; //Downward acceleration in pixels per second squared (was 0.15 per frame at 60 fps)
 
-//The world is drawn at SCALE x, so the screen shows window / SCALE world pixels. Used to place the camera
-const scaledCanvas = {
-    width: window.innerWidth / SCALE,
-    height: window.innerHeight / SCALE
-}
-
-//Set up a 2D array to store the collision tileset data
-const floorCollisions2D = []
-for (let i = 0; i < floorCollisions.length; i+= 36) {
-    floorCollisions2D.push(floorCollisions.slice(i, i + 36))//Each pushed/sliced array represents a row
-}
-
-//Set up collision blocks in the canvas using the collision tileset data
-const collisionBlocks = []
-floorCollisions2D.forEach((row, y) => {
-    row.forEach((symbol, x) => {
-        if (symbol === 202) {
-            collisionBlocks.push(new CollisionBlock({
-                position: {
-                    x: x * 16,
-                    y: y * 16
-                }
-            }))
-        }
-    })
-})
-
-//Set up a 2D array to store the platform collision tileset data
-const platformCollisions2D = []
-for (let i = 0; i < platformCollisions.length; i+= 36) {
-    platformCollisions2D.push(platformCollisions.slice(i, i + 36))
-}
-
-//Set up platform collision blocks in the canvas using the collision tileset data
-const platformBlocks = []
-platformCollisions2D.forEach((row, y) => {
-    row.forEach((symbol, x) => {
-        if (symbol === 202) {
-            platformBlocks.push(new CollisionBlock({
-                position: {
-                    x: x * 16,
-                    y: y * 16
-                },
-                height: 4,
-            }))
-        }
-    })
-})
+//Collision blocks for the whole tall level (see js/level.js)
+const {collisionBlocks, platformBlocks} = buildLevel()
 
 //Created in startGame() once Pixi and the textures are ready
-let background
+let backgrounds = [] //The background image repeated to cover the tall level
 let door
 let player1
 let player2
+let players = [] //Everyone in the race; the camera keeps all of them on screen
 
 //Add the background music
 const bgMusic = new AudioSFX({src: 'assets/audio/bg-music.mp3', volume: 0.5, autoplay: true, loop: true});
@@ -114,14 +69,16 @@ function createWarriorSounds() {
  * Creates a warrior at the given spawn point.
  * @param {Object} options
  * @param {String} options.name - Shown above the injury bar
+ * @param {Number} options.color - Tint (0xRRGGBB) that identifies this player on the HUD
  * @param {Number} options.x - Spawn x position
  * @param {Number} options.y - Spawn y position
  * @param {Boolean} options.facingLeft - Which way the warrior starts facing
  * @returns {Player}
  */
-function createWarrior({name, x, y, facingLeft}) {
+function createWarrior({name, color, x, y, facingLeft}) {
     return new Player({
         name,
+        color,
         imageSrc: facingLeft ? "assets/images/warrior/IdleLeft.png" : "assets/images/warrior/Idle.png",
         position: {x, y},
         velocity: {x: 0, y: 0},
@@ -134,21 +91,13 @@ function createWarrior({name, x, y, facingLeft}) {
     })
 }
 
-const backgroundHeight = 432
-//Camera object for tracking the player
-const cameraStart = {x: 0, y: -backgroundHeight + scaledCanvas.height}
-const camera = {
-    position: {...cameraStart},
-}
-
-/** Starts a fresh round: no injuries, spawn positions, camera back at the start. */
+/** Starts a fresh round: no injuries, spawn positions. */
 function resetMatch() {
     match.over = false
     match.winner = null
     player1.reset()
     player2.reset()
-    camera.position.x = cameraStart.x
-    camera.position.y = cameraStart.y
+    updateCamera(players, app.screen, 0, true) //Don't glide across the level back to the start
 }
 
 //Timing state for the game loop. Lives outside animate() so it survives between frames
@@ -168,10 +117,6 @@ function runPlayerAnimation(player, keys, dt) {
     player.update(dt);
     player.velocity.x = 0
 
-    //The camera follows vertical movement in every state (jumping, falling, even while stunned)
-    if (player.velocity.y < 0) player.panCameraToDown(camera, dt) //Pan the camera down if the player is exceeding the top boundary
-    else if (player.velocity.y > 0) player.panCameraToUp(camera, app.screen, dt) //Pan the camera up if the player is exceeding the bottom boundary
-
     //Stunned: no control, just the hit animation while being pushed back
     if (player.hitTimer > 0) {
         player.velocity.x = player.knockbackSpeed
@@ -189,13 +134,11 @@ function runPlayerAnimation(player, keys, dt) {
         player.velocity.x = MOVE_SPEED * player.speedMultiplier //Move the player right (pixels per second)
         player.facingLeft = false //Set the player's facing direction
         player.switchSprite('run') //Switch to the run animation
-        player.panCameraToLeft(app.screen, camera, dt) //Pan the camera to the left if the player is exceeding the right boundary
     }
     else if (input.a.pressed) {
         player.velocity.x = -MOVE_SPEED * player.speedMultiplier //Move the player left (pixels per second)
         player.facingLeft = true //Set the player's facing direction
         player.switchSprite('runLeft') //Switch to the runLeft animation
-        player.panCameraToRight(camera, dt) //Pan the camera to the right if the player is exceeding the left boundary
     }
     else if (player.velocity.y === 0) {
         player.switchSprite(player.facingLeft ? 'idleLeft' : 'idle')
@@ -220,8 +163,8 @@ function animate(timestamp) {
     const dt = lastTimestamp === null ? 0 : Math.min((timestamp - lastTimestamp) / 1000, MAX_DT)
     lastTimestamp = timestamp
 
-    //Camera -> screen: the world is scaled by SCALE, then shifted by the camera
-    world.position.set(camera.position.x * SCALE, camera.position.y * SCALE)
+    //Frame everyone. Done before the players move so the sprites and the camera agree this frame
+    updateCamera(players, app.screen, dt)
 
     runPlayerAnimation(player1, player1Keys, dt)
     runPlayerAnimation(player2, player2Keys, dt)
@@ -241,12 +184,18 @@ async function startGame() {
     const sheets = Object.values(createWarriorAnimations()).map(animation => animation.imageSrc)
     await initRenderer([backgroundSrc, ...sheets])
 
-    background = new Sprite({imageSrc: backgroundSrc, position: {x: 0, y: 0}})
-    background.draw() //Static: positioned once, never animated
-    //The door sits on the highest platform of the map (platform tiles x 12-14, y = 4 tiles = 64px)
-    door = new Door({position: {x: 12 * 16 + 12, y: 4 * 16 - 36}})
-    player1 = createWarrior({name: 'PLAYER 1', x: 100, y: 300, facingLeft: false})
-    player2 = createWarrior({name: 'PLAYER 2', x: 300, y: 300, facingLeft: true})
+    //Stack copies of the background upwards from the bottom of the level until the top is covered
+    const backgroundCount = Math.ceil(LEVEL.height / BACKGROUND_HEIGHT)
+    for (let i = 0; i < backgroundCount; i++) {
+        const background = new Sprite({imageSrc: backgroundSrc, position: {x: 0, y: -i * BACKGROUND_HEIGHT}})
+        background.draw() //Static: positioned once, never animated
+        backgrounds.push(background)
+    }
+    door = new Door({position: doorPosition(36)}) //On the highest platform of the top copy
+    player1 = createWarrior({name: 'PLAYER 1', color: 0x4aa3ff, x: 100, y: 300, facingLeft: false})
+    player2 = createWarrior({name: 'PLAYER 2', color: 0xff7a59, x: 300, y: 300, facingLeft: true})
+    players = [player1, player2]
+    updateCamera(players, app.screen, 0, true) //Start already framed, no glide from nowhere
 
     window.requestAnimationFrame(animate)
 }

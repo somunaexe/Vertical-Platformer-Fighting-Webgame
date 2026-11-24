@@ -14,6 +14,8 @@ A competitive **race to the top**. Every player climbs the same tall, vertical l
 - A sword hit adds **injury**. The more injured you are, the **slower you walk and the lower you jump**.
 - Injury **heals slowly**, and faster while you stand still. Resting costs time; racing while hurt costs speed.
 - Hits **knock you back and up**. Get knocked off a ledge and you fall to whatever is below.
+- Nobody is left out: the **camera zooms in and out** to keep every player on screen, and a progress track shows who is ahead.
+- The level is the original map **stacked five times**; change `LEVEL_COPIES` in `js/level.js` to make it taller.
 
 ---
 
@@ -32,6 +34,7 @@ A competitive **race to the top**. Every player climbs the same tall, vertical l
 - Frame-rate independent movement, jumping (with double jump) and animation
 - Sword combat: three attacks with wind-up, active frames, reach and knockback
 - Injury system: weaker climbing, slow recovery, faster when resting
+- Tall level built from stacked copies of the collision data, with a zoom-to-fit camera
 - PixiJS (WebGL) rendering
 
 ---
@@ -62,6 +65,8 @@ Vertical-Platformer-Fighting-Webgame/
 ├── index.js          # Level setup, player creation, game loop
 ├── js/
 │   ├── render.js     # PixiJS setup, texture loading, spritesheet slicing
+│   ├── level.js      # Tall level: stacks the map data, door position
+│   ├── camera.js     # Zoom-to-fit camera that frames every player
 │   ├── vendor/       # pixi.min.js (PixiJS 8.5.2) and its licence
 │   ├── events.js     # Keyboard controls, jump/attack actions, music
 │   ├── utils.js      # Collision helpers

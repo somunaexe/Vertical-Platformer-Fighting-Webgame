@@ -1,7 +1,8 @@
 class Player extends Sprite {
-    constructor({name, imageSrc, position, velocity, collisionBlocks, platformBlocks, frames, collidedVertically=false, scale = 0.5, animations, facingLeft, sounds}) {
+    constructor({name, color = 0xffffff, imageSrc, position, velocity, collisionBlocks, platformBlocks, frames, collidedVertically=false, scale = 0.5, animations, facingLeft, sounds}) {
         super({imageSrc, position, frames, scale})
         this.name = name
+        this.color = color //Identifies the player on the HUD (name tint, progress dot)
         this.spawn = {x: position.x, y: position.y, facingLeft} //Where reset() puts the player back
         this.velocity = velocity;
         this.collisionBlocks = collisionBlocks
@@ -24,14 +25,6 @@ class Player extends Sprite {
             width: 14,
             height: 27,
         }
-        this.cameraBox = {
-            position:{
-                x: this.position.x - 50,
-                y: this.position.y,
-            },
-            width: 200,
-            height: 80,
-        }
         this.animations = animations
 
         for (let key in this.animations) {
@@ -40,50 +33,10 @@ class Player extends Sprite {
         this.sounds = sounds
     }
 
-    updateCameraBox(){
-        this.cameraBox = {
-            position:{
-                x: this.position.x - 50,
-                y: this.position.y,
-            },
-            width: 200,
-            height: 80
-        }
-    }
-
-    panCameraToLeft(canvas, camera, dt){
-        const cameraboxRightSide = this.cameraBox.position.x + this.cameraBox.width
-        if(cameraboxRightSide >= 576) return
-        if(cameraboxRightSide >= (canvas.width / 4) + Math.abs(camera.position.x)){
-            camera.position.x -= this.velocity.x * dt
-        }
-    }
-    panCameraToRight(camera, dt){
-        if(this.cameraBox.position.x <= 0) return
-        if(this.cameraBox.position.x <= Math.abs(camera.position.x)){
-            camera.position.x -= this.velocity.x * dt
-        }
-    }
-
-    panCameraToUp(camera, canvas, dt){
-        const step = this.velocity.y * dt
-        if(this.cameraBox.position.y +this.cameraBox.height + step >= 432) return
-        if(this.cameraBox.position.y + this.cameraBox.height >= Math.abs(camera.position.y) + (canvas.height / 4)){
-            camera.position.y -= step
-        }
-    }
-
-    panCameraToDown(camera, dt){
-        const step = this.velocity.y * dt
-        if(this.cameraBox.position.y + step <= 0) return
-        if(this.cameraBox.position.y <= Math.abs(camera.position.y))
-            camera.position.y -= step
-    }
-
     checkForHorizontalCanvasCollisions(dt) {
         // Look ahead by the distance we are about to travel this frame (speed * time)
         const step = this.velocity.x * dt
-        if(this.hitbox.position.x + this.hitbox.width + step >= 576 || this.hitbox.position.x + step <= 0)
+        if(this.hitbox.position.x + this.hitbox.width + step >= LEVEL.width || this.hitbox.position.x + step <= 0)
             this.velocity.x = 0
     }
     switchSprite(key) {
@@ -102,7 +55,6 @@ class Player extends Sprite {
         this.recoverInjury(dt)
         this.updateFrames(dt)
         this.updateHitbox()
-        this.updateCameraBox()
         this.draw()
         this.position.x += this.velocity.x * dt;
         this.updateHitbox()
@@ -293,6 +245,7 @@ class Player extends Sprite {
     reset() {
         this.position.x = this.spawn.x
         this.position.y = this.spawn.y
+        this.updateHitbox() //The camera reads the hitbox, which would otherwise lag a frame behind the move
         this.velocity.x = 0
         this.velocity.y = 0
         this.facingLeft = this.spawn.facingLeft
