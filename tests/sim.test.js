@@ -173,3 +173,26 @@ test('interpolateSnapshots slides positions, keeps the rest, and never slides ac
     assert.strictEqual(mix(0.5).over, false, 'the result flag changes when its moment arrives, not before')
     assert.strictEqual(mix(0.5).p[1].x, 200, 'a 300px jump is a teleport: no sliding')
 })
+
+// ---- The AI's map of the level ----
+test('the AI\'s platform map covers the level and has a route from the ground to the door', () => {
+    const sim = createSim(2)
+    const info = JSON.parse(sim.run(`(() => {
+        const {runs, doorRun} = getPlatformGraph()
+        const ground = runs.find(r => r.solid && r.y === 400)
+        const route = []
+        for (let r = ground; r; r = r.next) route.push([r.x0, r.x1, r.y])
+        const rises = route.slice(1).map((r, i) => route[i][2] - r[2])
+        return JSON.stringify({runs: runs.length, solid: runs.filter(r => r.solid).length, doorRun: [doorRun.x0, doorRun.x1, doorRun.y],
+            groundDistance: ground.distance, route, unreachable: runs.filter(r => r.distance === Infinity && !r.solid).length, rises})
+    })()`))
+    assert.strictEqual(info.solid, 2, 'the ground and the left ledge are the two solid surfaces')
+    assert.ok(info.runs > 60, `${info.runs} platforms`)
+    assert.deepStrictEqual(info.doorRun.slice(2), [-1280], 'the door stands on the top copy\'s highest platform')
+    assert.ok(Number.isFinite(info.groundDistance), 'a route exists')
+    const last = info.route[info.route.length - 1]
+    assert.deepStrictEqual(last, info.doorRun, 'the route ends on the door platform')
+    assert.ok(info.route.length > 25, `${info.route.length} runs from ground to door`)
+    assert.ok(Math.max(...info.rises) <= 48, `hardest hop is ${Math.max(...info.rises)}px: the easiest staircase (48px) exists and is used, so even a badly injured player can follow it`)
+    assert.strictEqual(info.unreachable, 0, 'every platform can reach the door')
+})

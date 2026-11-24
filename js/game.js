@@ -17,6 +17,7 @@ let door
 let player1
 let player2
 let players = [] //Everyone in the race; the camera keeps all of them on screen
+const aiControllers = [] //Computer players (see js/ai.js); empty unless a mode adds some
 
 // A room holds at most this many players. Everyone gets a "slot" (0 .. MAX_PLAYERS - 1) for the whole round.
 const MAX_PLAYERS = 12
@@ -145,6 +146,7 @@ function resetMatch() {
     match.over = false
     match.winner = null
     activePlayers().forEach(player => player.reset())
+    aiControllers.forEach(ai => ai.reset())
     GameEvents.emit('reset', {})
 }
 
@@ -227,6 +229,7 @@ function runPlayerAnimation(player, keys, dt) {
  * @param {Number} dt - Seconds to simulate
  */
 function stepGame(dt) {
+    for (const ai of aiControllers) ai.update(dt) //Computer players decide their keys first, like humans pressing them
     players.forEach((player, slot) => {
         if (!player.departed) runPlayerAnimation(player, playerKeys[slot], dt)
     })

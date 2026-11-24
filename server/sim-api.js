@@ -73,6 +73,11 @@ function simDepart(slot) {
     playerKeys[slot].a.pressed = playerKeys[slot].d.pressed = false
 }
 
+/** Gives a slot a computer player. For tests (and one day, bots to fill a room). */
+function simAddAi(slot, level, seed) {
+    aiControllers.push(createAiController({slot, level, seed}))
+}
+
 /** Starts a fresh round. */
 function simRematch() {
     resetMatch()
