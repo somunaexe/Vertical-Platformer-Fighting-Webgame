@@ -1,3 +1,7 @@
+// Training mode (see menu.js): the computer plays player 2, so BOTH key sets drive player 1 and the
+// player can use whichever they find comfortable (WASD + X/C/V, or the arrow keys + I/O/P)
+const training = {active: false, level: null}
+
 // One entry per player: which key does what.
 // `player` is a function because player1/player2 are created later, in index.js
 const controlSchemes = [
@@ -54,10 +58,11 @@ window.addEventListener("keydown", event => {
     if (event.code === "Enter" && match.over) requestRematch()
 
     for (const scheme of controlSchemes) {
-        if (event.code === scheme.left) setMove(scheme, 'left', true)
-        else if (event.code === scheme.right) setMove(scheme, 'right', true)
-        else if (event.code === scheme.jump) doJump(scheme)
-        else if (event.code in scheme.attacks) doAttack(scheme, scheme.attacks[event.code])
+        const actor = training.active ? controlSchemes[0] : scheme //Whose player the key controls
+        if (event.code === scheme.left) setMove(actor, 'left', true)
+        else if (event.code === scheme.right) setMove(actor, 'right', true)
+        else if (event.code === scheme.jump) doJump(actor)
+        else if (event.code in scheme.attacks) doAttack(actor, scheme.attacks[event.code])
     }
 })
 
@@ -78,8 +83,9 @@ window.addEventListener("blur", () => {
 
 window.addEventListener("keyup", event => {
     for (const scheme of controlSchemes) {
-        if (event.code === scheme.left) setMove(scheme, 'left', false)
-        else if (event.code === scheme.right) setMove(scheme, 'right', false)
+        const actor = training.active ? controlSchemes[0] : scheme
+        if (event.code === scheme.left) setMove(actor, 'left', false)
+        else if (event.code === scheme.right) setMove(actor, 'right', false)
     }
 })
 

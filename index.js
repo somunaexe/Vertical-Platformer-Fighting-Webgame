@@ -86,17 +86,24 @@ function teardownRound() {
     door.view.destroy()
     players = []
     door = undefined
+    aiControllers.length = 0 //Any computer players go with the round
+    training.active = false
+    training.level = null
     match.over = false
     match.winner = null
 }
 
 //Normally the menu appears. The address can skip it: ?online, ?online=create or ?room=CODE joins a game server;
-//?local starts a local round, ?players=N a local round with N players (2-12; the extras stand still, handy for testing crowds)
+//?local starts a local round, ?training=easy|normal|hard|dummy a round against the computer, ?players=N a local round with N players (2-12; the extras stand still, handy for testing crowds)
 const params = new URLSearchParams(location.search)
 bootRenderer().then(() => {
     createMenu()
     if (params.has('room')) return joinOnline({mode: 'code', code: params.get('room')})
     if (params.has('online')) return joinOnline({mode: params.get('online') === 'create' ? 'create' : 'quick'})
+    if (params.has('training')) {
+        const level = params.get('training')
+        return startTraining(Object.hasOwn(AI_LEVELS, level) ? level : 'normal')
+    }
     if (params.has('local') || params.has('players')) {
         const requested = parseInt(params.get('players'), 10)
         return startLocal(Number.isInteger(requested) ? Math.min(MAX_PLAYERS, Math.max(2, requested)) : 2)

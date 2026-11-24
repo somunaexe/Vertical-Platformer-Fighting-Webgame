@@ -89,6 +89,7 @@ function showMainMenu(notice = '') {
         button('Quick match', () => joinOnline({mode: 'quick'}), 'primary'),
         button('Create private room', () => joinOnline({mode: 'create'})),
         joinRow,
+        button('Training: play against the computer', () => showTrainingMenu()),
         button('Play locally (2 players, one keyboard)', () => startLocal()),
     )
 }
@@ -102,6 +103,39 @@ function startLocal(count = 2) {
     menu.root.hidden = true
     menu.leave.hidden = false //Lets you get back to the menu
     beginRound(count)
+}
+
+const TRAINING_LEVELS = [
+    ['dummy', 'Dummy', 'Stands still: practise your attacks'],
+    ['easy', 'Easy', 'Slow and hesitant'],
+    ['normal', 'Normal', 'A fair race and a fair fight'],
+    ['hard', 'Hard', 'Quick, aggressive, and it heals when hurt'],
+]
+
+/** Picks the computer opponent's difficulty. */
+function showTrainingMenu() {
+    show('training',
+        element('h1', '', 'Training'),
+        element('p', 'menu-tagline', 'You are Player 1. The computer follows exactly the same rules you do.'),
+        element('p', 'menu-controls', 'Move A / D, jump W, attack X / C / V (the arrow keys and I / O / P work too). On a phone, use the buttons.'),
+        ...TRAINING_LEVELS.map(([level, name, blurb]) => button(`${name}: ${blurb}`, () => startTraining(level), level === 'normal' ? 'primary' : '')),
+        button('Back', () => showMainMenu()),
+    )
+}
+
+/**
+ * Starts a local round against the computer: you are player 1, it plays player 2.
+ * No network is involved.
+ * @param {String} level - A key of AI_LEVELS
+ */
+function startTraining(level) {
+    menu.root.hidden = true
+    menu.leave.hidden = false
+    beginRound(2)
+    training.active = true
+    training.level = level
+    players[1].name = level === 'dummy' ? 'DUMMY' : `AI (${level.toUpperCase()})`
+    aiControllers.push(createAiController({slot: 1, level, seed: Date.now() % 1_000_000})) //A different game each time
 }
 
 /** Connects and joins; shows progress, and an explanation if the server can't be reached. */
