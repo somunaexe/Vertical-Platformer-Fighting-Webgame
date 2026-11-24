@@ -18,8 +18,6 @@ const LEVEL_COPIES = 5
 const COPY_PERIOD_ROWS = 21
 const COPY_PERIOD = COPY_PERIOD_ROWS * TILE //336
 
-const BACKGROUND_HEIGHT = 432 //Height of background.png; the background is repeated to cover the level (replaced by tile art in the next commit)
-
 const LEVEL = {
     left: 0,
     top: -(LEVEL_COPIES - 1) * COPY_PERIOD, //y of the very top of the level

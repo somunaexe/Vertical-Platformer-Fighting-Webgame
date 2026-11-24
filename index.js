@@ -1,6 +1,3 @@
-//Created in startGame() once Pixi and the textures are ready
-let backgrounds = [] //The background image repeated to cover the tall level
-
 //Add the background music
 const bgMusic = new AudioSFX({src: 'assets/audio/bg-music.mp3', volume: 0.5, autoplay: true, loop: true});
 
@@ -53,17 +50,9 @@ function animate(timestamp) {
  * Everything that needs a texture waits for this, because textures load asynchronously.
  */
 async function bootRenderer() {
-    const backgroundSrc = "assets/images/background.png"
     const sheets = Object.values(createWarriorAnimations()).map(animation => animation.imageSrc)
-    await initRenderer([backgroundSrc, ...sheets])
-
-    //Stack copies of the background upwards from the bottom of the level until the top is covered
-    const backgroundCount = Math.ceil(LEVEL.height / BACKGROUND_HEIGHT)
-    for (let i = 0; i < backgroundCount; i++) {
-        const background = new Sprite({imageSrc: backgroundSrc, position: {x: 0, y: -i * BACKGROUND_HEIGHT}})
-        background.draw() //Static: positioned once, never animated
-        backgrounds.push(background)
-    }
+    await initRenderer([...levelArtTextureUrls(), ...sheets])
+    buildLevelArt() //Sky, ground, platforms and vines, drawn from the Tiled map's layers (see js/level-art.js)
     window.requestAnimationFrame(animate)
 }
 
