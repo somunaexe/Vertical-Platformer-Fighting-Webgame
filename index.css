@@ -1,8 +1,62 @@
-body{
+/* The game is one canvas that fills the screen; the page itself must never scroll, zoom or select text */
+html, body {
     margin: 0;
     padding: 0;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
+    position: fixed;            /* Stops iOS rubber-banding the whole page */
+    background: #10202e;
+    overscroll-behavior: none;  /* No pull-to-refresh or back-swipe while playing */
+    touch-action: none;         /* We handle every touch ourselves: no scrolling, no double-tap zoom */
+    -webkit-user-select: none;
+    user-select: none;          /* A long press must not start selecting text */
+    -webkit-touch-callout: none;/* ...or open the iOS "save image" menu */
+    -webkit-tap-highlight-color: transparent;
 }
-canvas{
+canvas {
     display: block;
 }
+
+/* ---- On-screen touch controls (built by js/touch.js on touch devices) ---- */
+#touch-controls {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0 max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    pointer-events: none;       /* Only the buttons catch touches; the game stays visible and untouched around them */
+    z-index: 10;
+}
+.touch-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+}
+.touch-attacks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.touch-button {
+    pointer-events: auto;
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    background: rgba(16, 32, 46, 0.55);
+    color: #fff;
+    font: bold 15px sans-serif;
+    border-radius: 16px;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: transform 0.05s, background 0.05s;
+}
+.touch-button.pressed {
+    background: rgba(255, 255, 255, 0.45);
+    transform: scale(0.93);
+}
+.touch-move   { width: 72px; height: 72px; font-size: 26px; }
+.touch-jump   { width: 92px; height: 92px; border-radius: 50%; font-size: 17px; }
+.touch-attack { width: 72px; height: 40px; border-radius: 12px; font-size: 13px; }

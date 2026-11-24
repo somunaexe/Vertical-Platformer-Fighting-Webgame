@@ -16,7 +16,7 @@ async function initRenderer(textureUrls) {
         width: window.innerWidth,
         height: window.innerHeight,
         backgroundColor: 0x10202e, //Shows around the level when the camera zooms out past its edges
-        resolution: window.devicePixelRatio || 1,
+        resolution: Math.min(window.devicePixelRatio || 1, 2), //Phones report 3x or more; 2x is plenty sharp and 2.25x cheaper than 3x
         autoDensity: true,  //Canvas keeps its CSS size on high-DPI screens
         roundPixels: true,  //Snap sprites to whole screen pixels: no shimmering pixel art
         autoStart: false,   //We render from our own loop (it measures dt), not Pixi's ticker

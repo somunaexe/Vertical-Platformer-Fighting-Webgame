@@ -63,28 +63,68 @@ function attack(player, type) {
     player.elapsedTime = 0
 }
 
+// ---- The three things a player can do ----
+// Keyboard, touch buttons (and later the network) all go through these, so every input method
+// behaves identically. `scheme` is an entry of controlSchemes: it identifies which player is acting.
+
+/**
+ * Starts or stops walking in a direction (held state; released when the key/button is let go).
+ * @param {Object} scheme - Which player (an entry of controlSchemes)
+ * @param {String} direction - 'left' or 'right'
+ * @param {Boolean} pressed - true when the input goes down, false when it is released
+ */
+function setMove(scheme, direction, pressed) {
+    scheme.keys[direction === 'left' ? 'a' : 'd'].pressed = pressed
+}
+
+/** Jumps (a one-shot action; see jump() for the rules). */
+function doJump(scheme) {
+    jump(scheme.player())
+}
+
+/**
+ * Swings the sword (a one-shot action; see attack() for the rules).
+ * @param {String} type - 'low', 'mid' or 'overhead'
+ */
+function doAttack(scheme, type) {
+    attack(scheme.player(), type)
+}
+
+// ---- Keyboard: translates key presses into the actions above ----
 window.addEventListener("keydown", event => {
     if (event.code === "Enter" && match.over) resetMatch()
 
     for (const scheme of controlSchemes) {
-        if (event.code === scheme.left) scheme.keys.a.pressed = true
-        else if (event.code === scheme.right) scheme.keys.d.pressed = true
-        else if (event.code === scheme.jump) jump(scheme.player())
-        else if (event.code in scheme.attacks) attack(scheme.player(), scheme.attacks[event.code])
+        if (event.code === scheme.left) setMove(scheme, 'left', true)
+        else if (event.code === scheme.right) setMove(scheme, 'right', true)
+        else if (event.code === scheme.jump) doJump(scheme)
+        else if (event.code in scheme.attacks) doAttack(scheme, scheme.attacks[event.code])
     }
+})
+
+// Clicking or tapping the game (not a button) starts a rematch once the round is over.
+// The short delay stops frantic button-mashing from skipping the winner's celebration.
+const REMATCH_TAP_DELAY = 800 //ms
+window.addEventListener("pointerdown", event => {
+    if (match.over && event.target instanceof HTMLCanvasElement && performance.now() - match.overAt > REMATCH_TAP_DELAY) resetMatch()
 })
 
 window.addEventListener("keyup", event => {
     for (const scheme of controlSchemes) {
-        if (event.code === scheme.left) scheme.keys.a.pressed = false
-        else if (event.code === scheme.right) scheme.keys.d.pressed = false
+        if (event.code === scheme.left) setMove(scheme, 'left', false)
+        else if (event.code === scheme.right) setMove(scheme, 'right', false)
     }
 })
 
-//Resize the canvas to fit the window (the renderer doesn't exist until startGame has run)
-window.addEventListener("resize", () => {
+//Resize the canvas to fit the window (the renderer doesn't exist until startGame has run).
+//Rotating a phone fires "resize"; so does the mobile address bar showing/hiding (visualViewport).
+function fitCanvasToWindow() {
     if (app.renderer) app.renderer.resize(window.innerWidth, window.innerHeight)
-})
+}
+window.addEventListener("resize", fitCanvasToWindow)
+window.visualViewport?.addEventListener("resize", fitCanvasToWindow)
+//Block the long-press context menu on touch devices
+window.addEventListener("contextmenu", event => event.preventDefault())
 
 //Start playing the music on first interaction (browsers block autoplay until the user interacts)
 window.addEventListener("click", playMusic)

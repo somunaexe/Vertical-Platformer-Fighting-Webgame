@@ -3,7 +3,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fill the whole screen (including under a notch) and never let the browser zoom the page -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#10202e">
+    <!-- Lets "Add to Home Screen" open the game full screen without browser chrome -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Swordfighter</title>
     <link href="index.css" rel="stylesheet">
 </head>
@@ -23,6 +29,7 @@
 <script src="./js/audio.js"></script>
 <script src="./js/effects.js"></script>
 <script src="./js/events.js"></script>
+<script src="./js/touch.js"></script>
 <script src="./js/classes/Sprite.js"></script>
 <script src="./js/classes/Player.js"></script>
 <script src="./index.js"></script>

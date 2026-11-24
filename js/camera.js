@@ -20,6 +20,10 @@ function addShake(amount) {
     shakeTrauma = Math.min(1, shakeTrauma + amount)
 }
 
+// Parts of the screen that something else covers (e.g. the touch buttons along the bottom).
+// The camera frames everyone in the REST of the screen, so nobody ends up hidden behind a button.
+const cameraInsets = {bottom: 0}
+
 // The camera's state: where it looks (world pixels) and how magnified the world is
 const camera = {x: 0, y: 0, zoom: 4}
 
@@ -30,6 +34,8 @@ const camera = {x: 0, y: 0, zoom: 4}
  * @returns {{x: number, y: number, zoom: number}}
  */
 function cameraTarget(players, screen) {
+    const viewHeight = screen.height - cameraInsets.bottom //The part of the screen the player can actually see
+
     // Bounding box around every player's body
     let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity
     for (const {hitbox} of players) {
@@ -43,12 +49,12 @@ function cameraTarget(players, screen) {
 
     // The zoom at which the box exactly fills the screen on its tighter axis.
     // Never zoom out further than showing the whole level, never in further than MAX_ZOOM.
-    const wholeLevelZoom = Math.min(screen.width / LEVEL.width, screen.height / LEVEL.height)
-    const zoom = Math.min(MAX_ZOOM, Math.max(wholeLevelZoom, Math.min(screen.width / boxWidth, screen.height / boxHeight)))
+    const wholeLevelZoom = Math.min(screen.width / LEVEL.width, viewHeight / LEVEL.height)
+    const zoom = Math.min(MAX_ZOOM, Math.max(wholeLevelZoom, Math.min(screen.width / boxWidth, viewHeight / boxHeight)))
 
     return {
         x: clampToLevel((left + right) / 2, screen.width / zoom, LEVEL.left, LEVEL.width),
-        y: clampToLevel((top + bottom) / 2, screen.height / zoom, LEVEL.top, LEVEL.height),
+        y: clampToLevel((top + bottom) / 2, viewHeight / zoom, LEVEL.top, LEVEL.height),
         zoom,
     }
 }
@@ -95,10 +101,11 @@ function updateCamera(players, screen, dt, snap = false) {
 function applyCamera(screen) {
     //Shake nudges the whole picture by a random amount, which grows with the square of the trauma
     const shake = shakeTrauma * shakeTrauma * SHAKE_MAX_OFFSET
+    const centreY = (screen.height - cameraInsets.bottom) / 2 //Middle of the uncovered part of the screen
     world.scale.set(camera.zoom)
     world.position.set(
         screen.width / 2 - camera.x * camera.zoom + (Math.random() * 2 - 1) * shake,
-        screen.height / 2 - camera.y * camera.zoom + (Math.random() * 2 - 1) * shake,
+        centreY - camera.y * camera.zoom + (Math.random() * 2 - 1) * shake,
     )
 }
 
