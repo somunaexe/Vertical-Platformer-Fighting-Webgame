@@ -25,6 +25,7 @@ You fight as you climb, but nobody dies:
 | **Injury** | 0 to 100. At 100 you walk at half speed and your jump is 80% as fast (64% as high: a double jump rises only 68 px) |
 | **Recovery** | 2 injury points per second; 2.5 times faster while standing still on the ground. No healing while stunned |
 | **A hit** | Stuns for 0.3 s, pushes you away and up, then you are immune to further hits for 0.5 s |
+| **Landing** | You land on a platform if your feet went from above its surface to at or below it during a step, however fast you fell (platforms are only 4 px thick). Jumping up through one from below is allowed |
 | **The level** | The original 576 × 432 map stacked **5 times** (576 × 1776 px). Change `LEVEL_COPIES` in `js/level.js` to resize it |
 
 The map's platforms are 32 to 80 px apart. The easiest route to the door has a hardest hop of 48 px, so even a badly
@@ -47,7 +48,7 @@ injured player can still climb it (the 64 and 80 px hops are out of reach until 
 - **Training mode**: race and fight a computer opponent (Dummy, Easy, Normal, Hard); no server or network needed
 - **Local two-player** on one keyboard
 - Sword combat with three attacks, wind-up, active frames, reach and knockback; the injury system
-- A tall level built from stacked copies of the collision data, with a zoom-to-fit camera
+- A tall level built from stacked copies of the Tiled map, with a zoom-to-fit camera. The art is drawn from the map's own layers at the same offsets as the collision, so what you see is what you can stand on
 - Game feel: hit sparks, landing dust, screen shake, white hit flash and win confetti, all driven by game events
 - Phone support: touch controls, responsive HUD, camera that keeps fighters clear of the buttons
 - Frame-rate independent movement, jumping and animation (plays the same on a 60 Hz or 144 Hz screen)
@@ -63,7 +64,8 @@ because the image loader needs real HTTP.
 ```bash
 npm install     # installs ws, the only dependency (package.json says Node 18+; developed and tested on Node 22)
 npm start       # http://localhost:3000   (set PORT to change it)
-npm test        # 47 automated tests: game rules, the AI, rooms and lobby, the real server
+npm test        # 59 automated tests: game rules, collision, level art, the AI, rooms and lobby, the real server
+npm run export-art   # only after editing the Tiled map: regenerates js/data/art.js
 ```
 
 `npm start` runs the game server, which also serves the page and runs online play. For **local and training play only**
@@ -84,6 +86,7 @@ python3 -m http.server 8000     # then open http://localhost:8000
 | `?online` / `?online=create` | Quick match / new private room |
 | `?room=CODE` | Join a room by code |
 | `?touch` | Show the touch controls on a desktop |
+| `?debug` | Draw what the game really collides with (F2 toggles it): solid blocks red, platform surfaces yellow, hitboxes green, sword reach magenta, the door cyan |
 
 ---
 
@@ -171,6 +174,18 @@ that the server could not be reached.
 
 ---
 
+## 🗺️ How the level is built
+
+The map was made in [Tiled](https://www.mapeditor.org) (`assets/tiled/verticalPlatformer.tmx`) and both the **collision** and
+the **art** are exported from it as tile data (`js/data/collision.js`, `js/data/art.js`). The tall level is that one map
+repeated 5 times, **336 px apart** (less than the map's 432 px height, so the copies overlap and the platform spacing at each
+seam stays 48 px). Only the first copy has the solid floor, the ledge, the trees and the bushes; every copy has platforms and
+the vines hanging under them.
+
+Collision and art are placed by the **same arithmetic** (`buildLevel()` and `levelArtPlacements()` in `js/level.js`), and a
+test (`tests/art.test.js`) fails if a drawn platform isn't solid or a solid one isn't drawn. If you edit the map in Tiled,
+run `npm run export-art` to regenerate `js/data/art.js` (a test fails if you forget). Use `?debug` to see the collision.
+
 ## 🧩 How the code fits together
 
 The code is split into **the rules** and **the presentation**, joined by a small event bus:
@@ -204,9 +219,11 @@ Vertical-Platformer-Fighting-Webgame/
 │   ├── game.js       # THE RULES (shared with the server): players, jump, attack, step
 │   ├── ai.js         # The computer opponent: level map, route to the door, fighting, difficulty (shared)
 │   ├── net-state.js  # The game as plain data: snapshots, applying and blending them (shared)
-│   ├── data/         # combat.js (attacks, injury, hits, HUD) and collision.js (the Tiled collision data)
+│   ├── data/         # combat.js (attacks, injury, hits, HUD), collision.js (collision tiles) and art.js (art tiles, generated)
 │   ├── classes/      # Sprite, Player, Door, CollisionBlock, AudioSFX
-│   ├── level.js      # Tall level: stacks the map data, door position
+│   ├── level.js      # Tall level: stacks the map's collision AND art tiles with the same offsets, door position
+│   ├── level-art.js  # Draws the sky, ground, platforms and vines from the Tiled layers
+│   ├── debug.js      # ?debug / F2 collision overlay
 │   ├── utils.js      # Collision helpers
 │   ├── bus.js        # GameEvents: the game announces jump/attack/hit/land/win/reset
 │   ├── net.js        # Connects to the server, sends input, replays snapshots and events
@@ -225,15 +242,19 @@ Vertical-Platformer-Fighting-Webgame/
 │   ├── sim.js        # Loads the shared rules into a sandbox per room
 │   ├── sim-api.js    # The doorway into a room's sandbox (input, step, snapshot)
 │   └── stubs.js      # Stand-ins for the browser-only pieces the rules touch
+├── tools/
+│   └── export-art.js # Tiled map -> js/data/art.js (npm run export-art)
 ├── tests/            # node --test
 │   ├── sim.test.js   # The rules, headless (movement, jumps, hits, door, determinism, the AI's level map)
+│   ├── collision.test.js # Landing on platforms at any speed and frame rate, one-way jumps, never falling out of the world
+│   ├── art.test.js   # What you see is what you stand on: art matches collision in every copy; art.js matches the map
 │   ├── ai.test.js    # The computer opponent (climbing, fighting, difficulty levels)
 │   ├── room.test.js  # Lobby and rooms, with fake clients and a fake clock
 │   └── server.test.js# The real server on a real port (files, sockets, limits)
-└── assets/           # audio/ (10 sound files), images/ (background + warrior sprite sheets), tiled/ (the Tiled map and tilesets)
+└── assets/           # audio/ (10 sound files), images/ (warrior sprite sheets), tiled/ (the Tiled map, tileset and scenery images the level is drawn from)
 ```
 
-`npm test` runs all 47 tests. Three of the sound files (`death`, `fall`, `run`) are loaded but not currently played.
+`npm test` runs all 59 tests. Three of the sound files (`death`, `fall`, `run`) are loaded but not currently played, and `assets/images/background.png` (the original flattened picture of the map) is no longer used by the game: the level is drawn from the Tiled layers instead.
 
 ## ⚠️ Known limits
 
@@ -241,7 +262,7 @@ Vertical-Platformer-Fighting-Webgame/
   Fine for a race, noticeable in a duel; prediction is the natural next step.
 - Online rooms live in one server process's memory: restarting the server ends the games, and there is no reconnecting to a
   game in progress. No accounts, chat, or per-IP limits.
-- All fighters look alike (the HUD colours and labels tell them apart), and the level is one map repeated.
+- All fighters look alike (the HUD colours and labels tell them apart), and the level is one map repeated (the tiles repeat, so the platform layout does too).
 - The AI only fights rivals on its own platform level, doesn't chase one on another platform, and plans its route for a
   healthy player (it rests when badly hurt rather than re-planning).
 - HUD for a full 12-player room shows your own bar plus a label and mini bar over each fighter.
